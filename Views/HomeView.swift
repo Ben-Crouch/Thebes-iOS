@@ -15,25 +15,47 @@ struct HomeView: View {
     
 var body: some View {
     ZStack(alignment: .top) {
-        VStack{
-            TopNavBarView(showSideMenu: $showSideMenu)
-            
-            Divider()
-                .frame(height: 1)
-                .background(Color.white)
-            ProfileHeaderView(viewModel: viewModel)
-            
-            Divider()
-                .frame(height: 1)
-                .background(Color.white)
-            
-            FavoritedTrackerSection(viewModel: viewModel)
-            MostRecentWorkoutView(viewModel: viewModel)
+        // Background with gradient
+        LinearGradient(
+            gradient: Gradient(colors: [Color.black, AppColors.primary]),
+            startPoint: .top,
+            endPoint: .bottom
+        )
+        .ignoresSafeArea()
+        
+        ScrollView {
+            VStack(spacing: 24) {
+                // Header Section
+                VStack(spacing: 16) {
+                    TopNavBarView(showSideMenu: $showSideMenu)
+                    
+                    VStack(spacing: 8) {
+                        Text("Welcome Back")
+                            .font(.largeTitle)
+                            .fontWeight(.bold)
+                            .foregroundColor(.white)
+                        
+                        Text("Ready for your next workout?")
+                            .font(.subheadline)
+                            .foregroundColor(.gray)
+                    }
+                    .padding(.top, 8)
+                }
+                
+                // Profile Card
+                ProfileHeaderView(viewModel: viewModel)
+                
+                // Quick Actions Card
+                QuickActionsCard()
+                
+                // Exercise Tracker Card
+                FavoritedTrackerSection(viewModel: viewModel)
+                
+                // Recent Workout Card
+                MostRecentWorkoutView(viewModel: viewModel)
+            }
+            .padding(.bottom, 20)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .navigationBarTitleDisplayMode(.inline)
-        .navigationBarHidden(true)
-        .zIndex(0)
         .onAppear {
             guard let userId = authViewModel.user?.uid else {
                 print("⚠️ No valid user ID found. Skipping HomeView data load.")
@@ -91,62 +113,147 @@ var body: some View {
         @EnvironmentObject var authViewModel: AuthViewModel
         
         var body: some View {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(spacing: 12) {
-                    if let imageUrl = viewModel.profileImageUrl,
-                       let url = URL(string: imageUrl) {
-                        AsyncImage(url: url) { image in
-                            image.resizable()
-                        } placeholder: {
-                            ProgressView()
-                        }
-                        .frame(width: 60, height: 60)
-                        .clipShape(Circle())
-                    } else {
-                        Image(systemName: "person.crop.circle.fill")
-                            .resizable()
-                            .frame(width: 60, height: 60)
-                            .foregroundColor(.gray)
-                    }
-
-                    Text(viewModel.username)
-                        .font(.title)
-                        .bold()
+            VStack(spacing: 16) {
+                HStack {
+                    Image(systemName: "person.circle.fill")
+                        .foregroundColor(AppColors.secondary)
+                        .font(.title2)
+                    
+                    Text("Profile")
+                        .font(.headline)
+                        .fontWeight(.semibold)
                         .foregroundColor(.white)
+                    
+                    Spacer()
                 }
                 
-                // Stats
-                HStack {
-                    HStack(spacing: 24) {
-                        VStack {
-                            Text("\(viewModel.followerCount)")
-                                .bold()
+                VStack(spacing: 16) {
+                    HStack(spacing: 16) {
+                        if let imageUrl = viewModel.profileImageUrl,
+                           let url = URL(string: imageUrl) {
+                            AsyncImage(url: url) { image in
+                                image.resizable()
+                            } placeholder: {
+                                ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle(tint: AppColors.secondary))
+                            }
+                            .frame(width: 80, height: 80)
+                            .clipShape(Circle())
+                            .overlay(
+                                Circle()
+                                    .stroke(AppColors.secondary.opacity(0.3), lineWidth: 2)
+                            )
+                        } else {
+                            Image(systemName: "person.crop.circle.fill")
+                                .resizable()
+                                .frame(width: 80, height: 80)
+                                .foregroundColor(AppColors.secondary.opacity(0.6))
+                        }
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(viewModel.username)
+                                .font(.title2)
+                                .fontWeight(.bold)
                                 .foregroundColor(.white)
-                            Text("Followers")
-                                .font(.caption)
+                            
+                            Text("Fitness Enthusiast")
+                                .font(.subheadline)
                                 .foregroundColor(.gray)
                         }
-                        VStack {
-                            Text("\(viewModel.followingCount)")
-                                .bold()
-                                .foregroundColor(.white)
-                            Text("Following")
-                                .font(.caption)
-                                .foregroundColor(.gray)
-                        }
-                        VStack {
-                            Text("\(viewModel.workoutCountLast30Days)")
-                                .bold()
-                                .foregroundColor(.white)
-                            Text("Last 30 Days")
-                                .font(.caption)
-                                .foregroundColor(.gray)
-                        }
+                        
+                        Spacer()
                     }
-                    .frame(maxWidth: .infinity, alignment: .center)
+                    
+                    // Stats Row
+                    HStack(spacing: 20) {
+                        StatItem(
+                            value: "\(viewModel.followerCount)",
+                            label: "Followers",
+                            icon: "person.2.fill",
+                            color: .blue
+                        )
+                        
+                        StatItem(
+                            value: "\(viewModel.followingCount)",
+                            label: "Following",
+                            icon: "person.3.fill",
+                            color: .green
+                        )
+                        
+                        StatItem(
+                            value: "\(viewModel.workoutCountLast30Days)",
+                            label: "This Month",
+                            icon: "calendar.badge.checkmark",
+                            color: .orange
+                        )
+                    }
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .center)
+            .padding(20)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Color.white.opacity(0.05))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(AppColors.secondary.opacity(0.3), lineWidth: 1)
+                    )
+            )
+            .padding(.horizontal, 20)
+        }
+    }
+    
+    struct QuickActionsCard: View {
+        @EnvironmentObject var authViewModel: AuthViewModel
+        
+        var body: some View {
+            VStack(spacing: 16) {
+                HStack {
+                    Image(systemName: "bolt.fill")
+                        .foregroundColor(AppColors.secondary)
+                        .font(.title2)
+                    
+                    Text("Quick Actions")
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.white)
+                    
+                    Spacer()
+                }
+                
+                HStack(spacing: 12) {
+                    NavigationLink(
+                        destination: WorkoutLogView(userId: authViewModel.user?.uid ?? "")
+                            .environmentObject(authViewModel)
+                    ) {
+                        QuickActionButton(
+                            title: "Log Workout",
+                            icon: "plus.circle.fill",
+                            color: .green
+                        )
+                    }
+                    
+                    NavigationLink(
+                        destination: TemplateLogView(userId: authViewModel.user?.uid ?? "")
+                            .environmentObject(authViewModel)
+                    ) {
+                        QuickActionButton(
+                            title: "Create Template",
+                            icon: "doc.text.fill",
+                            color: .blue
+                        )
+                    }
+                }
+            }
+            .padding(20)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Color.white.opacity(0.05))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(AppColors.secondary.opacity(0.3), lineWidth: 1)
+                    )
+            )
+            .padding(.horizontal, 20)
         }
     }
     
@@ -161,21 +268,53 @@ var body: some View {
                                     userId: authViewModel.user?.uid ?? "")
                                 ).environmentObject(authViewModel)
                 ) {
-                    VStack(alignment: .leading) {
-                        Text("Exercise Tracker")
-                            .font(.headline)
-                            .foregroundColor(AppColors.secondary)
+                    VStack(spacing: 16) {
+                        HStack {
+                            Image(systemName: "chart.line.uptrend.xyaxis")
+                                .foregroundColor(AppColors.secondary)
+                                .font(.title2)
+                            
+                            Text("Exercise Tracker")
+                                .font(.headline)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.white)
+                            
+                            Spacer()
+                            
+                            Image(systemName: "chevron.right")
+                                .foregroundColor(.gray)
+                                .font(.caption)
+                        }
                         
-                        Text(tracker)
-                            .font(.title2)
-                            .bold()
-                            .foregroundColor(.white)
-                            .padding()
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .border(AppColors.primary, width: 3)
-                            .cornerRadius(10)
+                        HStack {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Track Your Progress")
+                                    .font(.subheadline)
+                                    .foregroundColor(.gray)
+                                
+                                Text(tracker)
+                                    .font(.title3)
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(.white)
+                            }
+                            
+                            Spacer()
+                            
+                            Image(systemName: "dumbbell.fill")
+                                .foregroundColor(AppColors.secondary)
+                                .font(.title2)
+                        }
                     }
-                    .padding(.horizontal)
+                    .padding(20)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(Color.white.opacity(0.05))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 16)
+                                    .stroke(AppColors.secondary.opacity(0.3), lineWidth: 1)
+                            )
+                    )
+                    .padding(.horizontal, 20)
                 }
             }
         }
@@ -187,31 +326,109 @@ var body: some View {
         
         var body: some View {
             if let workout = viewModel.mostRecentWorkout {
-                VStack(alignment: .leading, spacing: 5) {
-                    Text("Most Recent Workout")
-                        .font(.headline)
-                        .foregroundColor(AppColors.secondary)
+                NavigationLink(destination: workoutDetailView(for: workout)) {
+                    RecentWorkoutCard(workout: workout)
+                }
+            }
+        }
+        
+        @ViewBuilder
+        private func workoutDetailView(for workout: Workout) -> some View {
+            let workoutDetailViewModel = WorkoutDetailViewModel(
+                currentUserId: authViewModel.user?.uid ?? "", 
+                workout: workout
+            )
+            WorkoutDetailView(viewModel: workoutDetailViewModel)
+        }
+    }
+    
+    struct RecentWorkoutCard: View {
+        let workout: Workout
+        
+        var body: some View {
+            VStack(spacing: 16) {
+                headerSection
+                contentSection
+            }
+            .padding(20)
+            .background(cardBackground)
+            .padding(.horizontal, 20)
+        }
+        
+        private var headerSection: some View {
+            HStack {
+                Image(systemName: "clock.fill")
+                    .foregroundColor(AppColors.secondary)
+                    .font(.title2)
+                
+                Text("Recent Workout")
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.white)
+                
+                Spacer()
+                
+                Image(systemName: "chevron.right")
+                    .foregroundColor(.gray)
+                    .font(.caption)
+            }
+        }
+        
+        private var contentSection: some View {
+            HStack {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(workout.title)
+                        .font(.title3)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.white)
                     
-                    let viewModel = WorkoutDetailViewModel(currentUserId: authViewModel.user?.uid ?? "", workout: workout)
-                    NavigationLink(destination: WorkoutDetailView(viewModel: viewModel)) {
-                        VStack(alignment: .leading, spacing: 5) {
-                            Text(workout.title)
-                                .font(.title3)
-                                .bold()
-                                .foregroundColor(.white)
-                            
-                            Text(workout.date, style: .date)
-                                .font(.subheadline)
-                                .foregroundColor(.gray)
-                        }
-                        .padding()
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .border(AppColors.primary, width: 3)
-                        .cornerRadius(10)
+                    dateSection
+                    
+                    if let notes = workout.notes, !notes.isEmpty {
+                        notesSection(notes)
                     }
                 }
-                .padding(.horizontal)
+                
+                Spacer()
+                
+                Image(systemName: "figure.strengthtraining.traditional")
+                    .foregroundColor(AppColors.secondary)
+                    .font(.title2)
             }
+        }
+        
+        private var dateSection: some View {
+            HStack {
+                Image(systemName: "calendar")
+                    .foregroundColor(.gray)
+                    .font(.caption)
+                
+                Text(workout.date, style: .date)
+                    .font(.subheadline)
+                    .foregroundColor(.gray)
+            }
+        }
+        
+        private func notesSection(_ notes: String) -> some View {
+            HStack {
+                Image(systemName: "note.text")
+                    .foregroundColor(.gray)
+                    .font(.caption)
+                
+                Text(notes)
+                    .font(.subheadline)
+                    .foregroundColor(.gray)
+                    .lineLimit(2)
+            }
+        }
+        
+        private var cardBackground: some View {
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color.white.opacity(0.05))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(AppColors.secondary.opacity(0.3), lineWidth: 1)
+                )
         }
     }
     
@@ -288,5 +505,60 @@ var body: some View {
                     .padding(.horizontal)
             }
         }
+    }
+}
+
+// MARK: - Supporting Components
+struct StatItem: View {
+    let value: String
+    let label: String
+    let icon: String
+    let color: Color
+    
+    var body: some View {
+        VStack(spacing: 8) {
+            Image(systemName: icon)
+                .foregroundColor(color)
+                .font(.title3)
+            
+            Text(value)
+                .font(.headline)
+                .fontWeight(.bold)
+                .foregroundColor(.white)
+            
+            Text(label)
+                .font(.caption)
+                .foregroundColor(.gray)
+        }
+        .frame(maxWidth: .infinity)
+    }
+}
+
+struct QuickActionButton: View {
+    let title: String
+    let icon: String
+    let color: Color
+    
+    var body: some View {
+        VStack(spacing: 8) {
+            Image(systemName: icon)
+                .foregroundColor(color)
+                .font(.title2)
+            
+            Text(title)
+                .font(.subheadline)
+                .fontWeight(.semibold)
+                .foregroundColor(.white)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 16)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(color.opacity(0.1))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(color.opacity(0.3), lineWidth: 1)
+                )
+        )
     }
 }
