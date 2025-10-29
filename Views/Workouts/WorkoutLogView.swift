@@ -20,45 +20,133 @@ struct WorkoutLogView: View {
     
     var body: some View {
         ZStack {
-            AppColors.primary.edgesIgnoringSafeArea(.all)
+            // Modern gradient background
+            LinearGradient(
+                gradient: Gradient(colors: [
+                    Color.black,
+                    Color.black.opacity(0.8),
+                    Color.black
+                ]),
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .edgesIgnoringSafeArea(.all)
             
-            VStack {
-                // Progress dots
-                HStack {
-                    Circle().fill(selectedTab == 0 ? AppColors.secondary : .gray).frame(width: 10, height: 10)
-                    Circle().fill(selectedTab == 1 ? AppColors.secondary : .gray).frame(width: 10, height: 10)
-                }
-                .padding(.top, 10)
-
-                // Conditionally show the appropriate view
-                if selectedTab == 0 {
-                    titleDateNotesView
-                } else {
-                    exercisesView
-                }
-
-                // Manual tab control buttons
-                HStack {
-                    if selectedTab == 1 {
-                        Button("← Back") {
-                            withAnimation {
-                                selectedTab = 0
+            VStack(spacing: 0) {
+                // Modern progress indicator
+                VStack(spacing: 16) {
+                    HStack(spacing: 20) {
+                        ForEach(0..<2, id: \.self) { index in
+                            Button(action: {
+                                withAnimation(.easeInOut(duration: 0.3)) {
+                                    selectedTab = index
+                                }
+                            }) {
+                                HStack(spacing: 8) {
+                                    Circle()
+                                        .fill(selectedTab == index ? AppColors.secondary : Color.gray.opacity(0.3))
+                                        .frame(width: 12, height: 12)
+                                        .scaleEffect(selectedTab == index ? 1.2 : 1.0)
+                                        .animation(.easeInOut(duration: 0.3), value: selectedTab)
+                                    
+                                    Text(index == 0 ? "Details" : "Exercises")
+                                        .font(.subheadline)
+                                        .fontWeight(selectedTab == index ? .semibold : .regular)
+                                        .foregroundColor(selectedTab == index ? AppColors.secondary : .gray)
+                                }
                             }
                         }
-                        .padding()
-                        .foregroundColor(AppColors.secondary)
+                    }
+                    
+                    // Progress bar
+                    GeometryReader { geometry in
+                        ZStack(alignment: .leading) {
+                            Rectangle()
+                                .fill(Color.gray.opacity(0.2))
+                                .frame(height: 4)
+                                .cornerRadius(2)
+                            
+                            Rectangle()
+                                .fill(AppColors.secondary)
+                                .frame(width: geometry.size.width * (selectedTab == 0 ? 0.5 : 1.0), height: 4)
+                                .cornerRadius(2)
+                                .animation(.easeInOut(duration: 0.3), value: selectedTab)
+                        }
+                    }
+                    .frame(height: 4)
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 20)
+
+                // Main content area
+                ScrollView {
+                    VStack(spacing: 20) {
+                        if selectedTab == 0 {
+                            titleDateNotesView
+                        } else {
+                            exercisesView
+                        }
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 100) // Space for navigation buttons
+                }
+            }
+
+            // Modern navigation buttons
+            VStack {
+                Spacer()
+                
+                HStack(spacing: 16) {
+                    if selectedTab == 1 {
+                        Button(action: {
+                            withAnimation(.easeInOut(duration: 0.3)) {
+                                selectedTab = 0
+                            }
+                        }) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "chevron.left")
+                                    .font(.subheadline)
+                                Text("Back")
+                                    .fontWeight(.semibold)
+                            }
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 24)
+                            .padding(.vertical, 12)
+                            .background(
+                                RoundedRectangle(cornerRadius: 25)
+                                    .fill(Color.white.opacity(0.1))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 25)
+                                            .stroke(Color.white.opacity(0.3), lineWidth: 1)
+                                    )
+                            )
+                        }
                     }
                     
                     if selectedTab == 0 {
-                        Button("Next →") {
-                            withAnimation {
+                        Button(action: {
+                            withAnimation(.easeInOut(duration: 0.3)) {
                                 selectedTab = 1
                             }
+                        }) {
+                            HStack(spacing: 8) {
+                                Text("Next")
+                                    .fontWeight(.semibold)
+                                Image(systemName: "chevron.right")
+                                    .font(.subheadline)
+                            }
+                            .foregroundColor(.black)
+                            .padding(.horizontal, 24)
+                            .padding(.vertical, 12)
+                            .background(
+                                RoundedRectangle(cornerRadius: 25)
+                                    .fill(AppColors.secondary)
+                            )
                         }
-                        .padding()
-                        .foregroundColor(AppColors.secondary)
                     }
                 }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 20)
             }
 
             // Toast overlay
@@ -66,15 +154,6 @@ struct WorkoutLogView: View {
                 .zIndex(1)
         }
         .toolbar {
-            ToolbarItem(placement: .navigationBarLeading) {
-                Button(action: {
-                    presentationMode.wrappedValue.dismiss()
-                }) {
-                    Image(systemName: "chevron.left")
-                        .foregroundColor(AppColors.secondary)
-                        .font(.title2)
-                }
-            }
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button(action: {
                     viewModel.save()
@@ -92,136 +171,264 @@ struct WorkoutLogView: View {
 
     // MARK: - Title / Date / Notes View
     private var titleDateNotesView: some View {
-        VStack {
-            Text("Workout Details")
-                .font(.largeTitle)
-                .bold()
-                .foregroundColor(AppColors.secondary)
-
-            TextField("", text: $viewModel.workoutTitle)
-                .modifier(PlaceholderModifier(
-                    showPlaceholder: viewModel.workoutTitle.isEmpty,
-                    placeholder: "Workout Title",
-                    color: .white.opacity(0.8)
-                ))
-                .padding()
-                .background(AppColors.complementary.opacity(0.2))
-                .cornerRadius(10)
-                .foregroundColor(.white)
-
-            HStack {
-                Text("Date")
-                    .padding()
-                    .foregroundColor(.white.opacity(0.8))
-
-                DatePicker("", selection: Binding(
-                    get: { viewModel.workoutDate ?? Date() },
-                    set: { viewModel.workoutDate = $0 }
-                ), displayedComponents: .date)
-                    .datePickerStyle(.compact)
-                    .padding()
-                    .cornerRadius(10)
-                    .foregroundColor(.white)
-                    .tint(.white)
+        VStack(spacing: 24) {
+            // Header card
+            VStack(spacing: 16) {
+                HStack {
+                    Image(systemName: "doc.text.fill")
+                        .foregroundColor(AppColors.secondary)
+                        .font(.title2)
+                    
+                    Text("Workout Details")
+                        .font(.title2)
+                        .fontWeight(.bold)
+                        .foregroundColor(.white)
+                    
+                    Spacer()
+                }
+                
+                Text("Fill in the basic information for your workout")
+                    .font(.subheadline)
+                    .foregroundColor(.gray)
+                    .multilineTextAlignment(.leading)
             }
-            .padding(5)
-            .background(AppColors.complementary.opacity(0.2))
-            .cornerRadius(10)
+            .padding(20)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Color.white.opacity(0.05))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(AppColors.secondary.opacity(0.3), lineWidth: 1)
+                    )
+            )
 
-            Text("Notes (Optional)")
-                .font(.headline)
-                .foregroundColor(AppColors.secondary)
-                .padding(.top)
+            // Title input card
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Workout Title")
+                    .font(.headline)
+                    .foregroundColor(.white)
+                
+                TextField("", text: $viewModel.workoutTitle)
+                    .modifier(PlaceholderModifier(
+                        showPlaceholder: viewModel.workoutTitle.isEmpty,
+                        placeholder: "Enter workout title...",
+                        color: .gray
+                    ))
+                    .padding(16)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color.white.opacity(0.08))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                            )
+                    )
+                    .foregroundColor(.white)
+            }
 
-            TextEditor(text: Binding(
-                get: { viewModel.notes ?? "" },
-                set: { viewModel.notes = $0 }
-            ))
-                .frame(height: 100)
-                .padding()
-                .background(AppColors.complementary.opacity(0.2))
-                .cornerRadius(10)
-                .foregroundColor(.white)
-                .scrollContentBackground(.hidden)
+            // Date picker card
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Date")
+                    .font(.headline)
+                    .foregroundColor(.white)
+                
+                HStack {
+                    Image(systemName: "calendar")
+                        .foregroundColor(AppColors.secondary)
+                        .font(.title3)
+                    
+                    DatePicker("", selection: Binding(
+                        get: { viewModel.workoutDate ?? Date() },
+                        set: { viewModel.workoutDate = $0 }
+                    ), displayedComponents: .date)
+                        .datePickerStyle(.compact)
+                        .foregroundColor(.white)
+                        .tint(AppColors.secondary)
+                    
+                    Spacer()
+                }
+                .padding(16)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color.white.opacity(0.08))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                        )
+                )
+            }
 
+            // Notes card
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Notes (Optional)")
+                    .font(.headline)
+                    .foregroundColor(.white)
+                
+                TextEditor(text: Binding(
+                    get: { viewModel.notes ?? "" },
+                    set: { viewModel.notes = $0 }
+                ))
+                    .frame(height: 100)
+                    .padding(16)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color.white.opacity(0.08))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                            )
+                    )
+                    .foregroundColor(.white)
+                    .scrollContentBackground(.hidden)
+            }
+
+            // Template button card
             Button(action: {
                 isTemplateSheetPresented.toggle()
             }) {
-                Text("Use Template")
-                    .font(.headline)
-                    .foregroundColor(AppColors.secondary)
-                    .padding()
-                    .frame(maxWidth: .infinity)
-                    .background(RoundedRectangle(cornerRadius: 8).fill(AppColors.primary))
-                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(AppColors.secondary, lineWidth: 2))
+                HStack(spacing: 12) {
+                    Image(systemName: "doc.on.doc.fill")
+                        .foregroundColor(AppColors.secondary)
+                        .font(.title3)
+                    
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Use Template")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                        
+                        Text("Load a saved workout template")
+                            .font(.subheadline)
+                            .foregroundColor(.gray)
+                    }
+                    
+                    Spacer()
+                    
+                    Image(systemName: "chevron.right")
+                        .foregroundColor(.gray)
+                        .font(.subheadline)
+                }
+                .padding(20)
+                .background(
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(Color.white.opacity(0.05))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 16)
+                                .stroke(AppColors.secondary.opacity(0.3), lineWidth: 1)
+                        )
+                )
             }
             .sheet(isPresented: $isTemplateSheetPresented) {
                 TemplateSelectionView(viewModel: viewModel)
             }
 
-            Text("Press 'Next →' to add exercises")
-                .font(.footnote)
-                .foregroundColor(.gray)
-                .padding(.top, 5)
-
-            Spacer()
+            // Next step hint
+            HStack {
+                Image(systemName: "info.circle")
+                    .foregroundColor(.blue)
+                    .font(.subheadline)
+                
+                Text("Press 'Next' to add exercises to your workout")
+                    .font(.subheadline)
+                    .foregroundColor(.gray)
+                
+                Spacer()
+            }
+            .padding(16)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color.blue.opacity(0.1))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(Color.blue.opacity(0.3), lineWidth: 1)
+                    )
+            )
         }
-        .padding()
     }
 
     // MARK: - Exercises View
     private var exercisesView: some View {
-        VStack {
-            Text("Exercises")
-                .font(.largeTitle)
-                .bold()
-                .foregroundColor(AppColors.secondary)
+        VStack(spacing: 24) {
+            // Header card
+            VStack(spacing: 16) {
+                HStack {
+                    Image(systemName: "dumbbell.fill")
+                        .foregroundColor(AppColors.secondary)
+                        .font(.title2)
+                    
+                    Text("Exercises")
+                        .font(.title2)
+                        .fontWeight(.bold)
+                        .foregroundColor(.white)
+                    
+                    Spacer()
+                }
+                
+                Text("Add exercises and track your sets, reps, and weights")
+                    .font(.subheadline)
+                    .foregroundColor(.gray)
+                    .multilineTextAlignment(.leading)
+            }
+            .padding(20)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Color.white.opacity(0.05))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(AppColors.secondary.opacity(0.3), lineWidth: 1)
+                    )
+            )
 
-            Divider().background(Color.white)
-
+            // Exercises list
             ScrollViewReader { proxy in
-                ScrollView {
-                    VStack(spacing: 10) {
-                        ForEach(viewModel.exercises.indices, id: \.self) { index in
-                            ExerciseInputView(
-                                viewModel: viewModel,
-                                exercise: $viewModel.exercises[index],
-                                exerciseIndex: index,
-                                addSet: {
-                                    withAnimation {
-                                        viewModel.addSet(to: index)
-                                    }
+                VStack(spacing: 16) {
+                    ForEach(viewModel.exercises.indices, id: \.self) { index in
+                        ExerciseInputView(
+                            viewModel: viewModel,
+                            exercise: $viewModel.exercises[index],
+                            exerciseIndex: index,
+                            addSet: {
+                                withAnimation {
+                                    viewModel.addSet(to: index)
                                 }
-                            )
-                            .id(index)
-                        }
+                            }
+                        )
+                        .id(index)
                     }
-                    .padding(.horizontal)
-                    .onChange(of: viewModel.exercises.count) { _ in
-                        withAnimation {
-                            proxy.scrollTo(viewModel.exercises.indices.last, anchor: .bottom)
-                        }
+                }
+                .onChange(of: viewModel.exercises.count) { _ in
+                    withAnimation {
+                        proxy.scrollTo(viewModel.exercises.indices.last, anchor: .bottom)
                     }
                 }
             }
 
-            Divider().background(Color.white)
-
+            // Add exercise button
             Button(action: {
                 withAnimation {
                     viewModel.addExercise()
                 }
             }) {
-                Text("+ Add Exercise")
-                    .font(.headline)
-                    .foregroundColor(AppColors.secondary)
-                    .padding()
-                    .frame(maxWidth: .infinity)
-                    .background(RoundedRectangle(cornerRadius: 8).fill(AppColors.primary))
-                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(AppColors.secondary, lineWidth: 2))
+                HStack(spacing: 12) {
+                    Image(systemName: "plus.circle.fill")
+                        .foregroundColor(AppColors.secondary)
+                        .font(.title3)
+                    
+                    Text("Add Exercise")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                    
+                    Spacer()
+                }
+                .padding(20)
+                .background(
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(Color.white.opacity(0.05))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 16)
+                                .stroke(AppColors.secondary.opacity(0.3), lineWidth: 1)
+                        )
+                )
             }
-            .padding(0.5)
         }
-        .padding()
     }
 }

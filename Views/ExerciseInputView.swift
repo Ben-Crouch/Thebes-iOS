@@ -37,14 +37,12 @@ struct ExerciseInputView<T: ExerciseHandlingProtocol>: View {
                 .cornerRadius(8)
                 .foregroundColor(.white)
 
-            Button(action: { viewModel.toggleBodyweight(for: exerciseIndex) }) {
-                Image(systemName: exercise.sets.allSatisfy { $0.weight == nil } ? "person.fill" : "dumbbell.fill")
-                    .foregroundColor(AppColors.secondary)
-            }
+            Spacer()
 
             Button(action: { viewModel.removeExercise(at: exerciseIndex) }) {
                 Image(systemName: "trash")
                     .foregroundColor(AppColors.secondary)
+                    .font(.title3)
             }
         }
     }
@@ -67,17 +65,23 @@ struct ExerciseInputView<T: ExerciseHandlingProtocol>: View {
                     .foregroundColor(AppColors.secondary)
             }
 
+            Spacer()
+
+            // Bodyweight/Weight toggle button
+            Button(action: { viewModel.toggleBodyweight(for: exerciseIndex) }) {
+                Image(systemName: exercise.sets.allSatisfy { $0.weight == nil } ? "dumbbell.fill" : "person.fill")
+                    .foregroundColor(AppColors.secondary)
+                    .font(.title3)
+            }
+
+            // Rest toggle button
             Button(action: {
                 let hasRest = exercise.sets.contains { $0.restTime != nil }
                 viewModel.showRestTime(for: exerciseIndex, isEnabled: !hasRest)
             }) {
-                Text(exercise.sets.contains { $0.restTime != nil } ? "− Rest" : "+ Rest")
-                    .font(.caption)
-                    .padding(6)
-                    .background(AppColors.primary)
-                    .cornerRadius(5)
+                Image(systemName: exercise.sets.contains { $0.restTime != nil } ? "clock.fill" : "clock")
                     .foregroundColor(AppColors.secondary)
-                    .overlay(RoundedRectangle(cornerRadius: 5).stroke(AppColors.secondary, lineWidth: 1))
+                    .font(.title3)
             }
         }
     }
@@ -143,14 +147,26 @@ struct ExerciseInputView<T: ExerciseHandlingProtocol>: View {
 
     private var addSetButton: some View {
         Button(action: addSet) {
-            Text("+ Add Set")
-                .foregroundColor(AppColors.secondary)
-                .padding()
-                .frame(maxWidth: .infinity)
-                .overlay(RoundedRectangle(cornerRadius: 8).stroke(AppColors.secondary, lineWidth: 1.5))
+            HStack(spacing: 8) {
+                Image(systemName: "plus.circle.fill")
+                    .font(.subheadline)
+                Text("Add Set")
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+            }
+            .foregroundColor(AppColors.secondary)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity)
+            .background(
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(Color.white.opacity(0.08))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(AppColors.secondary.opacity(0.5), lineWidth: 1.5)
+                    )
+            )
         }
-        .background(AppColors.primary)
-        .cornerRadius(8)
-        .padding(.top, 5)
+        .padding(.top, 8)
     }
 }
