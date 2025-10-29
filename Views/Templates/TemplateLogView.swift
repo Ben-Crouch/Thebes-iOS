@@ -18,15 +18,25 @@ struct TemplateLogView: View {
 
     var body: some View {
         ZStack {
-            AppColors.primary.edgesIgnoringSafeArea(.all)
-            Divider()
-                .background(AppColors.secondary.opacity(0.3))
-                .frame(height: 1)
-                .padding(.top, -5)
+            // Modern gradient background
+            LinearGradient(
+                gradient: Gradient(colors: [
+                    Color.black,
+                    Color.black.opacity(0.8),
+                    Color.black
+                ]),
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .edgesIgnoringSafeArea(.all)
 
-            VStack {
-                titleInput
-                exercisesView
+            ScrollView {
+                VStack(spacing: 24) {
+                    titleInput
+                    exercisesView
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 20)
             }
 
             // Toast message
@@ -67,68 +77,135 @@ struct TemplateLogView: View {
     }
 
     private var titleInput: some View {
-        VStack {
-            Text("Title")
-                .font(.headline)
-                .foregroundColor(AppColors.secondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
+        VStack(spacing: 16) {
+            // Header card
+            VStack(spacing: 16) {
+                HStack {
+                    Image(systemName: "doc.text.fill")
+                        .foregroundColor(AppColors.secondary)
+                        .font(.title2)
+                    
+                    Text("Template Details")
+                        .font(.title2)
+                        .fontWeight(.bold)
+                        .foregroundColor(.white)
+                    
+                    Spacer()
+                }
+                
+                Text("Create a reusable workout template")
+                    .font(.subheadline)
+                    .foregroundColor(.gray)
+                    .multilineTextAlignment(.leading)
+            }
+            .padding(20)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Color.white.opacity(0.05))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(AppColors.secondary.opacity(0.3), lineWidth: 1)
+                    )
+            )
 
-            TextField("", text: $viewModel.templateTitle)
-                .modifier(PlaceholderModifier(
-                    showPlaceholder: viewModel.templateTitle.isEmpty,
-                    placeholder: "Enter Template Name",
-                    color: .white.opacity(0.8)
-                ))
-                .padding()
-                .background(AppColors.complementary.opacity(0.2))
-                .cornerRadius(10)
-                .foregroundColor(.white)
+            // Title input card
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Template Name")
+                    .font(.headline)
+                    .foregroundColor(.white)
+                
+                TextField("", text: $viewModel.templateTitle)
+                    .modifier(PlaceholderModifier(
+                        showPlaceholder: viewModel.templateTitle.isEmpty,
+                        placeholder: "Enter template name...",
+                        color: .gray
+                    ))
+                    .padding(16)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color.white.opacity(0.08))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                            )
+                    )
+                    .foregroundColor(.white)
+            }
         }
-        .padding()
     }
 
     private var exercisesView: some View {
-        VStack {
-            Text("Exercises")
-                .font(.headline)
-                .foregroundColor(AppColors.secondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal)
-
-            Divider().background(Color.white)
-
-            ScrollView {
-                VStack(spacing: 10) {
-                    ForEach(viewModel.exercises.indices, id: \.self) { index in
-                        ExerciseInputView(
-                            viewModel: viewModel,
-                            exercise: $viewModel.exercises[index],
-                            exerciseIndex: index,
-                            addSet: { viewModel.addSet(to: index) }
-                        )
-                    }
+        VStack(spacing: 24) {
+            // Header card
+            VStack(spacing: 16) {
+                HStack {
+                    Image(systemName: "dumbbell.fill")
+                        .foregroundColor(AppColors.secondary)
+                        .font(.title2)
+                    
+                    Text("Exercises")
+                        .font(.title2)
+                        .fontWeight(.bold)
+                        .foregroundColor(.white)
+                    
+                    Spacer()
                 }
-                .padding(.horizontal)
+                
+                Text("Add exercises to your template")
+                    .font(.subheadline)
+                    .foregroundColor(.gray)
+                    .multilineTextAlignment(.leading)
+            }
+            .padding(20)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Color.white.opacity(0.05))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(AppColors.secondary.opacity(0.3), lineWidth: 1)
+                    )
+            )
+
+            // Exercises list
+            VStack(spacing: 16) {
+                ForEach(viewModel.exercises.indices, id: \.self) { index in
+                    ExerciseInputView(
+                        viewModel: viewModel,
+                        exercise: $viewModel.exercises[index],
+                        exerciseIndex: index,
+                        addSet: { viewModel.addSet(to: index) }
+                    )
+                }
             }
 
-            Divider().background(Color.white)
-
+            // Add exercise button
             Button(action: {
                 withAnimation {
                     viewModel.addExercise()
                 }
             }) {
-                Text("+ Add Exercise")
-                    .font(.headline)
-                    .foregroundColor(AppColors.secondary)
-                    .padding()
-                    .frame(maxWidth: .infinity)
-                    .background(RoundedRectangle(cornerRadius: 8).fill(AppColors.primary))
-                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(AppColors.secondary, lineWidth: 2))
+                HStack(spacing: 12) {
+                    Image(systemName: "plus.circle.fill")
+                        .foregroundColor(AppColors.secondary)
+                        .font(.title3)
+                    
+                    Text("Add Exercise")
+                        .font(.headline)
+                        .foregroundColor(.white)
+                    
+                    Spacer()
+                }
+                .padding(20)
+                .background(
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(Color.white.opacity(0.05))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 16)
+                                .stroke(AppColors.secondary.opacity(0.3), lineWidth: 1)
+                        )
+                )
             }
-            .padding(0.5)
         }
-        .padding()
     }
 }
 
