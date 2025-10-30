@@ -376,9 +376,3 @@ struct UserSearchCard: View {
         }
     }
 }
-
-#Preview {
-    SocialSearchView(searchQuery: "", onSocialStatsChanged: nil)
-        .environmentObject(AuthViewModel())
-}
-

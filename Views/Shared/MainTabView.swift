@@ -20,10 +20,7 @@ struct MainTabView: View {
         } else {
             TabView {
                 NavigationStack {
-                    ZStack {
-                        Color.black.ignoresSafeArea()
-                        HomeView()
-                    }
+                    HomeView()
                 }
                 .tabItem {
                     Image(systemName: "house")
@@ -31,10 +28,7 @@ struct MainTabView: View {
                 }
 
                 NavigationStack {
-                    ZStack {
-                        Color.black.ignoresSafeArea()
-                        WorkoutsView()
-                    }
+                    WorkoutsView()
                 }
                 .tabItem {
                     Image(systemName: "square.grid.2x2")
@@ -42,10 +36,7 @@ struct MainTabView: View {
                 }
 
                 NavigationStack {
-                    ZStack {
-                        Color.black.ignoresSafeArea()
-                        //ChallengesView()
-                    }
+                    //ChallengesView()
                 }
                 .tabItem {
                     Image(systemName: "flag")
@@ -53,10 +44,7 @@ struct MainTabView: View {
                 }
 
                 NavigationStack {
-                    ZStack {
-                        Color.black.ignoresSafeArea()
-                        TrackerView(viewModel: TrackerViewModel(userId: authViewModel.user?.uid ?? ""))
-                    }
+                    TrackerView(viewModel: TrackerViewModel(userId: authViewModel.user?.uid ?? ""))
                 }
                 .tabItem {
                     Image(systemName: "chart.bar")

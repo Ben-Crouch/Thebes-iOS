@@ -16,46 +16,36 @@ struct WorkoutsListView: View {
     
     var body: some View {
         ZStack(alignment: .top) {
+            // Match TemplatesListView gradient
             LinearGradient(
-                gradient: Gradient(colors: [Color.black, AppColors.primary]),
-                startPoint: .top,
-                endPoint: .bottom
+                gradient: Gradient(colors: [
+                    Color.black,
+                    Color.black.opacity(0.8),
+                    Color.black
+                ]),
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
             )
-            .ignoresSafeArea()
+            .edgesIgnoringSafeArea(.all)
             
             VStack(spacing: 0) {
-                VStack(spacing: 16) {
-                    TopNavBarView(showSideMenu: $showSideMenu)
-                    
-                    VStack(spacing: 8) {
-                        Text("All Workouts")
-                            .font(.largeTitle)
-                            .fontWeight(.bold)
-                            .foregroundColor(.white)
-                        
-                        Text("Your complete workout history")
-                            .font(.subheadline)
-                            .foregroundColor(.gray)
-                    }
-                    .padding(.top, 8)
-                }
-                
-                // Make the entire content scrollable including the header
                 ScrollView {
-                    LazyVStack(spacing: 16) {
+                    VStack(spacing: 20) {
                         WorkoutsListHeaderView(viewModel: viewModel)
-                        
-                        ForEach(viewModel.workouts, id: \.id) { workout in
-                            Button {
-                                selectedWorkout = workout
-                                showDetail = true
-                            } label: {
-                                WorkoutListItemCard(workout: workout)
+
+                        LazyVStack(spacing: 16) {
+                            ForEach(viewModel.workouts, id: \.id) { workout in
+                                Button {
+                                    selectedWorkout = workout
+                                    showDetail = true
+                                } label: {
+                                    WorkoutListItemCard(workout: workout)
+                                }
+                                .buttonStyle(PlainButtonStyle())
                             }
-                            .buttonStyle(PlainButtonStyle())
                         }
                         .padding(.horizontal, 20)
-                        
+
                         if viewModel.canLoadMore {
                             LoadMoreButton {
                                 viewModel.loadMoreWorkouts(for: authViewModel.user?.uid ?? "")
@@ -64,7 +54,7 @@ struct WorkoutsListView: View {
                             .padding(.top, 8)
                         }
                     }
-                    .padding(.vertical, 16)
+                    .padding(.vertical, 20)
                 }
             }
             .onAppear {
@@ -114,6 +104,22 @@ struct WorkoutsListView: View {
                 .background(AppColors.secondary)
                 .transition(.move(edge: .trailing))
                 .frame(maxWidth: .infinity, alignment: .trailing)
+            }
+        }
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                Text("Workouts")
+                    .font(.headline)
+                    .foregroundColor(.white)
+            }
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button(action: {
+                    withAnimation { showSideMenu.toggle() }
+                }) {
+                    Image(systemName: "person.circle")
+                        .font(.system(size: 26))
+                        .foregroundColor(.white)
+                }
             }
         }
     }

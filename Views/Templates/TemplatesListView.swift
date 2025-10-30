@@ -9,36 +9,82 @@ import SwiftUI
 
 struct TemplatesListView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
-    @StateObject private var viewModel = WorkoutsViewModel()
+    @Environment(\.dismiss) private var dismiss
+    @StateObject private var viewModel = TemplatesListViewModel(userId: "")
     @State private var showSideMenu = false
+    @State private var showDetail = false
+    @State private var selectedTemplate: Template?
     
     var body: some View {
-        ZStack(alignment: .top){
-            VStack{
-                TopNavBarView(showSideMenu: $showSideMenu)
-                Divider()
-                    .frame(height: 1)
-                    .background(Color.white)
-                
-                TemplatesListHeaderView(viewModel: viewModel)
-                Divider()
-                    .frame(height: 1)
-                    .background(Color.white)
+        ZStack {
+            // Modern gradient background
+            LinearGradient(
+                gradient: Gradient(colors: [
+                    Color.black,
+                    Color.black.opacity(0.8),
+                    Color.black
+                ]),
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .edgesIgnoringSafeArea(.all)
+            
+            VStack(spacing: 0) {
+                ScrollView {
+                    VStack(spacing: 20) {
+                        // Header card
+                        TemplatesListHeaderView(viewModel: viewModel)
+                        
+                        // Templates list
+                        if viewModel.isLoading {
+                            VStack(spacing: 20) {
+                                ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle(tint: AppColors.secondary))
+                                    .scaleEffect(1.5)
                                 
-                Spacer()
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-            .onAppear {
-                guard let userId = authViewModel.user?.uid else {
-                    print("⚠️ No valid user ID found. Skipping HomeView data load.")
-                    return
+                                Text("Loading Templates...")
+                                    .foregroundColor(.white)
+                                    .font(.headline)
+                            }
+                            .padding(.vertical, 40)
+                        } else if viewModel.templates.isEmpty {
+                            VStack(spacing: 16) {
+                                Image(systemName: "doc.text")
+                                    .foregroundColor(.gray)
+                                    .font(.system(size: 48))
+                                
+                                Text("No Templates Yet")
+                                    .font(.title2)
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(.white)
+                                
+                                Text("Create your first workout template to get started")
+                                    .font(.subheadline)
+                                    .foregroundColor(.gray)
+                                    .multilineTextAlignment(.center)
+                            }
+                            .padding(.vertical, 40)
+                        } else {
+                            LazyVStack(spacing: 16) {
+                                ForEach(viewModel.templates.indices, id: \.self) { index in
+                                    TemplateListItemCard(
+                                        template: viewModel.templates[index],
+                                        onTap: {
+                                            selectedTemplate = viewModel.templates[index]
+                                            showDetail = true
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 20)
                 }
-                viewModel.loadUserProfile(for: userId)
-                viewModel.loadMostRecentWorkout(for: userId)
             }
-        }
-        
-        if showSideMenu {
+            
+            // Side menu
+            if showSideMenu {
                 Color.black.opacity(0.4)
                     .edgesIgnoringSafeArea(.all)
                     .onTapGesture {
@@ -65,17 +111,55 @@ struct TemplatesListView: View {
                 .background(AppColors.secondary)
                 .transition(.move(edge: .trailing))
                 .frame(maxWidth: .infinity, alignment: .trailing)
+            }
+        }
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                Text("Templates")
+                    .font(.headline)
+                    .foregroundColor(.white)
+            }
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button(action: {
+                    withAnimation {
+                        showSideMenu.toggle()
+                    }
+                }) {
+                    Image(systemName: "person.circle")
+                        .font(.system(size: 26))
+                        .foregroundColor(.white)
+                }
+            }
+        }
+        .onAppear {
+            guard let userId = authViewModel.user?.uid else {
+                print("⚠️ No valid user ID found. Skipping TemplatesListView data load.")
+                return
+            }
+            // Update the viewModel's userId and load data
+            viewModel.updateUserId(userId)
+            viewModel.loadUserProfile()
+            viewModel.loadTemplates()
+        }
+        .navigationDestination(isPresented: $showDetail) {
+            if let template = selectedTemplate {
+                TemplateDetailView(
+                    template: template,
+                    currentUserId: authViewModel.user?.uid ?? ""
+                )
+                .environmentObject(authViewModel)
+            }
         }
     }
 }
 
 struct TemplatesListHeaderView: View {
-    @EnvironmentObject var authViewModel: AuthViewModel
-    @ObservedObject var viewModel: WorkoutsViewModel
-    
+    @ObservedObject var viewModel: TemplatesListViewModel
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 12) {
+        VStack(spacing: 16) {
+            // Profile Section
+            HStack(spacing: 16) {
                 if let imageUrl = viewModel.profileImageUrl,
                    let url = URL(string: imageUrl) {
                     AsyncImage(url: url) { image in
@@ -83,34 +167,117 @@ struct TemplatesListHeaderView: View {
                     } placeholder: {
                         ProgressView()
                     }
-                    .frame(width: 60, height: 60)
+                    .frame(width: 70, height: 70)
                     .clipShape(Circle())
+                    .overlay(
+                        Circle()
+                            .stroke(AppColors.secondary.opacity(0.3), lineWidth: 2)
+                    )
                 } else {
                     Image(systemName: "person.crop.circle.fill")
                         .resizable()
-                        .frame(width: 60, height: 60)
+                        .frame(width: 70, height: 70)
+                        .foregroundColor(.gray)
+                        .overlay(
+                            Circle()
+                                .stroke(AppColors.secondary.opacity(0.3), lineWidth: 2)
+                        )
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(viewModel.username)
+                        .font(.title2)
+                        .fontWeight(.bold)
+                        .foregroundColor(.white)
+
+                    Text("Templates")
+                        .font(.subheadline)
                         .foregroundColor(.gray)
                 }
 
-                Text(viewModel.username)
-                    .font(.title)
-                    .bold()
-                    .foregroundColor(.white)
+                Spacer()
             }
-            
-            // Stats
-            HStack {
-                HStack(spacing: 24) {
-                    Text(" Workouts in the last 30 Days: ")
-                        .font(.caption)
-                        .foregroundColor(.white)
-                    Text("\(viewModel.workoutCountLast30Days)")
-                        .bold()
-                        .foregroundColor(AppColors.secondary)
-                }
-                .frame(maxWidth: .infinity, alignment: .center)
+
+            // Stats Section
+            HStack(spacing: 16) {
+                StatItem(
+                    value: "\(viewModel.templateCount)",
+                    label: "Templates",
+                    icon: "doc.text.fill",
+                    color: .blue
+                )
+                
+                StatItem(
+                    value: "\(viewModel.templateCount)",
+                    label: "Total",
+                    icon: "list.bullet",
+                    color: .green
+                )
+                
+                StatItem(
+                    value: "Ready",
+                    label: "Status",
+                    icon: "checkmark.circle",
+                    color: .orange
+                )
             }
         }
-        .frame(maxWidth: .infinity, alignment: .center)
+        .padding(20)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color.white.opacity(0.05))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(AppColors.secondary.opacity(0.3), lineWidth: 1)
+                )
+        )
+        .padding(.horizontal, 20)
+        .padding(.top, 8)
+    }
+}
+
+struct TemplateListItemCard: View {
+    let template: Template
+    let onTap: () -> Void
+    
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: 16) {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Image(systemName: "doc.text.fill")
+                            .foregroundColor(AppColors.secondary)
+                            .font(.title3)
+                        
+                        Text(template.title)
+                            .font(.headline)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.white)
+                        
+                        Spacer()
+                    }
+                    
+                    Text("Tap to view details")
+                        .font(.subheadline)
+                        .foregroundColor(.gray)
+                }
+                
+                Spacer()
+                
+                Image(systemName: "chevron.right")
+                    .foregroundColor(.gray)
+                    .font(.subheadline)
+            }
+            .padding(20)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Color.white.opacity(0.05))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(AppColors.secondary.opacity(0.3), lineWidth: 1)
+                    )
+            )
+        }
+        .buttonStyle(PlainButtonStyle())
     }
 }

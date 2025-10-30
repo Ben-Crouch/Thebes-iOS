@@ -15,11 +15,15 @@ struct WorkoutsView: View {
     var body: some View {
         ZStack(alignment: .top) {
             LinearGradient(
-                gradient: Gradient(colors: [Color.black, AppColors.primary]),
-                startPoint: .top,
-                endPoint: .bottom
+                gradient: Gradient(colors: [
+                    Color.black,
+                    Color.black.opacity(0.8),
+                    Color.black
+                ]),
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
             )
-            .ignoresSafeArea()
+            .edgesIgnoringSafeArea(.all)
             
             ScrollView {
                 VStack(spacing: 24) {
