@@ -14,6 +14,7 @@ class TrackerViewModel: ObservableObject {
     @Published var allExerciseNames: [String] = []
     @Published var favoritedExercise: String? = nil
     @Published var displayName: String = "User"
+    @Published var profileImageUrl: String? = nil
     @Published var preferredWeightUnit: String = "kg"
     @Published var selectedTimeRange: String = "3M"
     @Published var trackedExercises: [Exercise] = []
@@ -42,6 +43,15 @@ class TrackerViewModel: ObservableObject {
                     }
                 case .failure(let error):
                     print("❌ Failed to load user profile info: \(error.localizedDescription)")
+                }
+            }
+        }
+        
+        // Also fetch full user profile for profile image
+        UserService.shared.fetchUserProfile(userId: userId) { userProfile in
+            DispatchQueue.main.async {
+                if let profile = userProfile {
+                    self.profileImageUrl = profile.profilePic
                 }
             }
         }

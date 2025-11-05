@@ -45,7 +45,7 @@ struct SocialStatCard: View {
             .padding(20)
             .background(
                 RoundedRectangle(cornerRadius: 16)
-                    .fill(AppColors.primary)
+                    .fill(Color.white.opacity(0.05))
                     .overlay(
                         RoundedRectangle(cornerRadius: 16)
                             .stroke(AppColors.secondary.opacity(0.3), lineWidth: 1)
@@ -70,23 +70,44 @@ struct SocialView: View {
     
     var body: some View {
         ZStack(alignment: .top) {
+            // Gradient background matching other views
+            LinearGradient(
+                gradient: Gradient(colors: [
+                    Color.black,
+                    Color.black.opacity(0.8),
+                    Color.black
+                ]),
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .edgesIgnoringSafeArea(.all)
+            
             VStack(spacing: 0) {
                 // Top Navigation
                 TopNavBarView(showSideMenu: $showSideMenu)
                 
-                Divider()
-                    .frame(height: 1)
-                    .background(Color.white)
-                
                 ScrollView {
                     VStack(spacing: 24) {
                         // Header Section
-                        VStack(alignment: .leading, spacing: 16) {
+                        VStack(spacing: 16) {
+                            HStack {
+                                Image(systemName: "person.3.fill")
+                                    .foregroundColor(AppColors.secondary)
+                                    .font(.title2)
+                                
+                                Text("Social")
+                                    .font(.title2)
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.white)
+                                
+                                Spacer()
+                            }
+                            
                             HStack {
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text("Hey, \(viewModel.username)!")
-                                        .font(.title2)
-                                        .fontWeight(.bold)
+                                        .font(.title3)
+                                        .fontWeight(.semibold)
                                         .foregroundColor(.white)
                                     
                                     Text("Connect with friends and track your fitness journey together")
@@ -106,14 +127,31 @@ struct SocialView: View {
                                     }
                                     .frame(width: 50, height: 50)
                                     .clipShape(Circle())
+                                    .overlay(
+                                        Circle()
+                                            .stroke(AppColors.secondary.opacity(0.3), lineWidth: 2)
+                                    )
                                 } else {
                                     Image(systemName: "person.crop.circle.fill")
                                         .resizable()
                                         .frame(width: 50, height: 50)
                                         .foregroundColor(.gray)
+                                        .overlay(
+                                            Circle()
+                                                .stroke(AppColors.secondary.opacity(0.3), lineWidth: 2)
+                                        )
                                 }
                             }
                         }
+                        .padding(20)
+                        .background(
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(Color.white.opacity(0.05))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 16)
+                                        .stroke(AppColors.secondary.opacity(0.3), lineWidth: 1)
+                                )
+                        )
                         .padding(.horizontal, 20)
                         .padding(.top, 20)
                         
@@ -156,7 +194,7 @@ struct SocialView: View {
                             .padding(16)
                             .background(
                                 RoundedRectangle(cornerRadius: 16)
-                                    .fill(AppColors.primary)
+                                    .fill(Color.white.opacity(0.08))
                                     .overlay(
                                         RoundedRectangle(cornerRadius: 16)
                                             .stroke(isSearchFocused ? AppColors.secondary : AppColors.secondary.opacity(0.3), lineWidth: 1)
@@ -167,11 +205,18 @@ struct SocialView: View {
                         
                         // Social Stats Grid
                         VStack(spacing: 16) {
-                            Text("Your Network")
-                                .font(.title2)
-                                .fontWeight(.semibold)
-                                .foregroundColor(.white)
-                                .frame(maxWidth: .infinity, alignment: .leading)
+                            HStack {
+                                Image(systemName: "person.2.fill")
+                                    .foregroundColor(AppColors.secondary)
+                                    .font(.title2)
+                                
+                                Text("Your Network")
+                                    .font(.title2)
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.white)
+                                
+                                Spacer()
+                            }
                             
                             LazyVGrid(columns: [
                                 GridItem(.flexible()),
@@ -211,6 +256,15 @@ struct SocialView: View {
                                 }
                             }
                         }
+                        .padding(20)
+                        .background(
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(Color.white.opacity(0.05))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 16)
+                                        .stroke(AppColors.secondary.opacity(0.3), lineWidth: 1)
+                                )
+                        )
                         .padding(.horizontal, 20)
                         
                         Spacer(minLength: 100)
@@ -218,35 +272,25 @@ struct SocialView: View {
                 }
             }
             
-            // Side Menu Overlay
-            if showSideMenu {
-                Color.black.opacity(0.4)
-                    .edgesIgnoringSafeArea(.all)
-                    .onTapGesture {
-                        withAnimation {
-                            showSideMenu = false
-                        }
-                    }
-                
-                VStack(alignment: .leading, spacing: 20) {
-                    Button("User Settings") {
-                        // Navigate to user settings
-                    }
-                    .foregroundColor(.white)
-                    
-                    Button("Log Out") {
-                        authViewModel.signOut()
-                    }
-                    .foregroundColor(.white)
-                    
-                    Spacer()
+            // Side Menu
+            SideMenuView(
+                isPresented: $showSideMenu,
+                username: viewModel.username,
+                profileImageUrl: viewModel.profileImageUrl,
+                userEmail: authViewModel.user?.email,
+                onViewProfile: {
+                    // TODO: Navigate to user's own profile
+                },
+                onSettings: {
+                    // TODO: Navigate to settings
+                },
+                onAbout: {
+                    // TODO: Show about screen
+                },
+                onLogOut: {
+                    authViewModel.signOut()
                 }
-                .padding()
-                .frame(width: 250)
-                .background(AppColors.secondary)
-                .transition(.move(edge: .trailing))
-                .frame(maxWidth: .infinity, alignment: .trailing)
-            }
+            )
         }
         .onAppear {
             if let userId = authViewModel.user?.uid {

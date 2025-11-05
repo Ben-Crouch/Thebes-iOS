@@ -15,13 +15,17 @@ struct TrackerView: View {
 
     var body: some View {
         ZStack(alignment: .top) {
-            // Background with gradient
+            // Gradient background matching Home, Challenges, and Workouts
             LinearGradient(
-                gradient: Gradient(colors: [Color.black, AppColors.primary]),
-                startPoint: .top,
-                endPoint: .bottom
+                gradient: Gradient(colors: [
+                    Color.black,
+                    Color.black.opacity(0.8),
+                    Color.black
+                ]),
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
             )
-            .ignoresSafeArea()
+            .edgesIgnoringSafeArea(.all)
             
             ScrollView {
                 VStack(spacing: 24) {
@@ -77,7 +81,7 @@ struct TrackerView: View {
                     }
                     
                     // Exercise Selection Card
-                    VStack(spacing: 16) {
+                    VStack(spacing: 20) {
                         HStack {
                             Image(systemName: "dumbbell.fill")
                                 .foregroundColor(AppColors.secondary)
@@ -91,51 +95,113 @@ struct TrackerView: View {
                             Spacer()
                         }
                         
-                        VStack(spacing: 12) {
-                            HStack {
-                                Text("Exercise:")
-                                    .font(.subheadline)
-                                    .foregroundColor(.gray)
-                                
-                                Spacer()
-                                
-                                Picker(selection: $viewModel.selectedExercise, label: Text(viewModel.selectedExercise ?? "Select Exercise")) {
+                        // Exercise Selection Button
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Exercise")
+                                .font(.caption)
+                                .foregroundColor(.gray)
+                            
+                            Button(action: {}) {
+                                HStack {
+                                    if let selectedExercise = viewModel.selectedExercise {
+                                        Text(selectedExercise)
+                                            .font(.subheadline)
+                                            .fontWeight(.medium)
+                                            .foregroundColor(.white)
+                                    } else {
+                                        Text("Select Exercise")
+                                            .font(.subheadline)
+                                            .foregroundColor(.gray)
+                                    }
+                                    
+                                    Spacer()
+                                    
+                                    Image(systemName: "chevron.down")
+                                        .font(.caption)
+                                        .foregroundColor(AppColors.secondary)
+                                }
+                                .padding(16)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .fill(Color.white.opacity(0.08))
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 12)
+                                                .stroke(viewModel.selectedExercise != nil ? AppColors.secondary.opacity(0.5) : Color.white.opacity(0.2), lineWidth: 1)
+                                        )
+                                )
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                            .overlay(
+                                Menu {
                                     ForEach(viewModel.allExerciseNames, id: \.self) { exercise in
-                                        Text(exercise)
-                                            .tag(Optional(exercise))
+                                        Button(action: {
+                                            viewModel.selectedExercise = exercise
+                                        }) {
+                                            HStack {
+                                                Text(exercise)
+                                                if viewModel.selectedExercise == exercise {
+                                                    Spacer()
+                                                    Image(systemName: "checkmark")
+                                                        .foregroundColor(AppColors.secondary)
+                                                }
+                                            }
+                                        }
                                     }
+                                } label: {
+                                    Color.clear
                                 }
-                                .pickerStyle(MenuPickerStyle())
-                                .tint(AppColors.secondary)
-                            }
+                            )
+                        }
+                        
+                        // Time Range Selection
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Time Range")
+                                .font(.caption)
+                                .foregroundColor(.gray)
                             
-                            HStack {
-                                Text("Time Range:")
-                                    .font(.subheadline)
-                                    .foregroundColor(.gray)
-                                
-                                Spacer()
-                                
-                                Picker(selection: $viewModel.selectedTimeRange, label: Text(viewModel.selectedTimeRange)) {
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 8) {
+                                    Spacer()
                                     ForEach(viewModel.timeRanges, id: \.self) { range in
-                                        Text(range)
-                                            .tag(range)
+                                        Button(action: {
+                                            viewModel.selectedTimeRange = range
+                                            viewModel.updateSelectedTimeRange(range)
+                                        }) {
+                                            Text(range)
+                                                .font(.caption)
+                                                .fontWeight(.medium)
+                                                .foregroundColor(viewModel.selectedTimeRange == range ? .black : .white)
+                                                .padding(.horizontal, 12)
+                                                .padding(.vertical, 8)
+                                                .background(
+                                                    RoundedRectangle(cornerRadius: 8)
+                                                        .fill(viewModel.selectedTimeRange == range ? AppColors.secondary : Color.white.opacity(0.08))
+                                                        .overlay(
+                                                            RoundedRectangle(cornerRadius: 8)
+                                                                .stroke(viewModel.selectedTimeRange == range ? AppColors.secondary : Color.white.opacity(0.2), lineWidth: 1)
+                                                        )
+                                                )
+                                        }
+                                        .buttonStyle(PlainButtonStyle())
                                     }
+                                    Spacer()
                                 }
-                                .pickerStyle(MenuPickerStyle())
-                                .tint(AppColors.secondary)
-                                .onChange(of: viewModel.selectedTimeRange) { newRange in
-                                    viewModel.updateSelectedTimeRange(newRange)
-                                }
+                                .padding(.horizontal, 2) // Add small padding to prevent edge clipping
                             }
+                        }
+                        
+                        // Unit Display
+                        HStack {
+                            Text("Unit")
+                                .font(.caption)
+                                .foregroundColor(.gray)
                             
-                            HStack {
-                                Text("Unit:")
-                                    .font(.subheadline)
-                                    .foregroundColor(.gray)
-                                
-                                Spacer()
-                                
+                            Spacer()
+                            
+                            HStack(spacing: 6) {
+                                Image(systemName: "scalemass")
+                                    .font(.caption)
+                                    .foregroundColor(AppColors.secondary)
                                 Text(viewModel.preferredWeightUnit)
                                     .font(.subheadline)
                                     .fontWeight(.medium)
@@ -155,21 +221,40 @@ struct TrackerView: View {
                     .padding(.horizontal, 20)
                     
                     // Progress Chart Card
-                    VStack(spacing: 16) {
-                        HStack {
-                            Image(systemName: "chart.line.uptrend.xyaxis")
-                                .foregroundColor(AppColors.secondary)
-                                .font(.title2)
+                    if viewModel.selectedExercise != nil {
+                        VStack(spacing: 16) {
+                            HStack {
+                                Image(systemName: "chart.line.uptrend.xyaxis")
+                                    .foregroundColor(AppColors.secondary)
+                                    .font(.title2)
+                                
+                                Text("Progress Chart")
+                                    .font(.headline)
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(.white)
+                                
+                                Spacer()
+                            }
                             
-                            Text("Progress Chart")
-                                .font(.headline)
-                                .fontWeight(.semibold)
-                                .foregroundColor(.white)
-                            
-                            Spacer()
-                        }
-                        
-                        Chart(viewModel.trackedExercises) { exercise in
+                            if viewModel.trackedExercises.isEmpty {
+                                VStack(spacing: 16) {
+                                    Image(systemName: "chart.line.uptrend.xyaxis")
+                                        .foregroundColor(AppColors.secondary.opacity(0.5))
+                                        .font(.system(size: 48))
+                                    
+                                    Text("No Data Available")
+                                        .font(.headline)
+                                        .foregroundColor(.white)
+                                    
+                                    Text("Start logging workouts with this exercise to see your progress chart")
+                                        .font(.subheadline)
+                                        .foregroundColor(.gray)
+                                        .multilineTextAlignment(.center)
+                                }
+                                .frame(height: 280)
+                                .frame(maxWidth: .infinity)
+                            } else {
+                                Chart(viewModel.trackedExercises) { exercise in
                             if let date = exercise.date,
                                let maxWeight = exercise.sets.map({ $0.weight ?? 0 }).max() {
                                 LineMark(
@@ -228,21 +313,67 @@ struct TrackerView: View {
                                 AxisValueLabel()
                                     .foregroundStyle(.white)
                             }
+                                }
+                                .frame(height: 280)
+                            }
                         }
-                        .frame(height: 280)
+                        .padding(20)
+                        .background(
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(Color.white.opacity(0.05))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 16)
+                                        .stroke(AppColors.secondary.opacity(0.3), lineWidth: 1)
+                                )
+                        )
+                        .padding(.horizontal, 20)
+                    } else {
+                        // Empty state when no exercise selected
+                        VStack(spacing: 16) {
+                            HStack {
+                                Image(systemName: "chart.line.uptrend.xyaxis")
+                                    .foregroundColor(AppColors.secondary)
+                                    .font(.title2)
+                                
+                                Text("Progress Chart")
+                                    .font(.headline)
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(.white)
+                                
+                                Spacer()
+                            }
+                            
+                            VStack(spacing: 16) {
+                                Image(systemName: "arrow.up.circle")
+                                    .foregroundColor(AppColors.secondary.opacity(0.5))
+                                    .font(.system(size: 48))
+                                
+                                Text("Select an Exercise")
+                                    .font(.headline)
+                                    .foregroundColor(.white)
+                                
+                                Text("Choose an exercise above to view your progress chart and statistics")
+                                    .font(.subheadline)
+                                    .foregroundColor(.gray)
+                                    .multilineTextAlignment(.center)
+                            }
+                            .frame(height: 280)
+                            .frame(maxWidth: .infinity)
+                        }
+                        .padding(20)
+                        .background(
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(Color.white.opacity(0.05))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 16)
+                                        .stroke(AppColors.secondary.opacity(0.3), lineWidth: 1)
+                                )
+                        )
+                        .padding(.horizontal, 20)
                     }
-                    .padding(20)
-                    .background(
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(Color.white.opacity(0.05))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 16)
-                                    .stroke(AppColors.secondary.opacity(0.3), lineWidth: 1)
-                            )
-                    )
-                    .padding(.horizontal, 20)
                     
                     // Stats Summary Cards
+                    if viewModel.selectedExercise != nil {
                     VStack(spacing: 16) {
                         HStack {
                             Image(systemName: "chart.bar.fill")
@@ -347,8 +478,9 @@ struct TrackerView: View {
                             )
                     )
                     .padding(.horizontal, 20)
-                    .padding(.bottom, 20)
+                    }
                 }
+                .padding(.bottom, 20)
             }
             .onChange(of: viewModel.selectedExercise) { newValue in
                 if let newExercise = newValue {
@@ -356,35 +488,25 @@ struct TrackerView: View {
                 }
             }
             
-            // Side Menu Overlay
-            if showSideMenu {
-                Color.black.opacity(0.4)
-                    .edgesIgnoringSafeArea(.all)
-                    .onTapGesture {
-                        withAnimation {
-                            showSideMenu = false
-                        }
-                    }
-
-                VStack(alignment: .leading, spacing: 20) {
-                    Button("User Settings") {
-                        // Navigate to user settings
-                    }
-                    .foregroundColor(.white)
-
-                    Button("Log Out") {
-                        authViewModel.signOut()
-                    }
-                    .foregroundColor(.white)
-
-                    Spacer()
+            // Side Menu
+            SideMenuView(
+                isPresented: $showSideMenu,
+                username: viewModel.displayName,
+                profileImageUrl: viewModel.profileImageUrl,
+                userEmail: authViewModel.user?.email,
+                onViewProfile: {
+                    // TODO: Navigate to user's own profile
+                },
+                onSettings: {
+                    // TODO: Navigate to settings
+                },
+                onAbout: {
+                    // TODO: Show about screen
+                },
+                onLogOut: {
+                    authViewModel.signOut()
                 }
-                .padding()
-                .frame(width: 250)
-                .background(AppColors.secondary)
-                .transition(.move(edge: .trailing))
-                .frame(maxWidth: .infinity, alignment: .trailing)
-            }
+            )
         }
     }
 }

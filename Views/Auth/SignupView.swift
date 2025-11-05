@@ -7,6 +7,7 @@
 import SwiftUI
 import GoogleSignIn
 import GoogleSignInSwift
+import AuthenticationServices
 
 struct SignupView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
@@ -20,87 +21,113 @@ struct SignupView: View {
 
     var body: some View {
         ZStack {
-            Color.black.edgesIgnoringSafeArea(.all)
+            // Gradient background
+            LinearGradient(
+                gradient: Gradient(colors: [
+                    Color.black,
+                    Color.black.opacity(0.8),
+                    Color.black
+                ]),
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .edgesIgnoringSafeArea(.all)
 
             VStack(spacing: 20) {
-                // ✅ Thebes Logo
-                Image("ThebesLogo")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 150, height: 150)
-                    .padding(.bottom, 20)
-
-                // ✅ Title
-                Text("Sign Up")
-                    .font(.largeTitle)
-                    .bold()
-                    .foregroundColor(.white)
-
-                // ✅ Email Input Field
-                VStack(alignment: .leading, spacing: 5) {
-                    Text("Email")
-                        .font(.headline)
-                        .foregroundColor(AppColors.secondary)
-
-                    TextField("", text: $email)
-                        .modifier(PlaceholderModifier(
-                            showPlaceholder: email.isEmpty,
-                            placeholder: "Enter Email",
-                            color: .white.opacity(0.8)
-                        ))
-                        .padding()
-                        .background(AppColors.complementary.opacity(0.2))
-                        .cornerRadius(10)
+                // Logo and Title Section
+                VStack(spacing: 16) {
+                    Image("ThebesLogo")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 100, height: 100)
+                    
+                    Text("Create Account")
+                        .font(.system(size: 28, weight: .bold))
                         .foregroundColor(.white)
+                    
+                    Text("Join Thebes and start tracking your fitness journey")
+                        .font(.caption)
+                        .foregroundColor(.white.opacity(0.7))
+                        .multilineTextAlignment(.center)
                 }
-                .padding(.horizontal)
+                .padding(.top, 20)
+                
+                // Input Fields Card
+                VStack(spacing: 14) {
+                    // Email Input Field
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Email")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundColor(.white.opacity(0.9))
+                        
+                        TextField("", text: $email)
+                            .modifier(PlaceholderModifier(
+                                showPlaceholder: email.isEmpty,
+                                placeholder: "Enter your email",
+                                color: .white.opacity(0.5)
+                            ))
+                            .padding(14)
+                            .background(Color.white.opacity(0.08))
+                            .cornerRadius(12)
+                            .foregroundColor(.white)
+                            .autocapitalization(.none)
+                            .keyboardType(.emailAddress)
+                    }
 
-                // ✅ Password Input Field
-                VStack(alignment: .leading, spacing: 5) {
-                    Text("Password")
-                        .font(.headline)
-                        .foregroundColor(AppColors.secondary)
+                    // Password Input Field
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Password")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundColor(.white.opacity(0.9))
+                        
+                        SecureField("", text: $password)
+                            .modifier(PlaceholderModifier(
+                                showPlaceholder: password.isEmpty,
+                                placeholder: "Create a password",
+                                color: .white.opacity(0.5)
+                            ))
+                            .padding(14)
+                            .background(Color.white.opacity(0.08))
+                            .cornerRadius(12)
+                            .foregroundColor(.white)
+                    }
 
-                    SecureField("", text: $password)
-                        .modifier(PlaceholderModifier(
-                            showPlaceholder: password.isEmpty,
-                            placeholder: "Enter Password",
-                            color: .white.opacity(0.8)
-                        ))
-                        .padding()
-                        .background(AppColors.complementary.opacity(0.2))
-                        .cornerRadius(10)
-                        .foregroundColor(.white)
+                    // Confirm Password Field
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Confirm Password")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundColor(.white.opacity(0.9))
+                        
+                        SecureField("", text: $confirmPassword)
+                            .modifier(PlaceholderModifier(
+                                showPlaceholder: confirmPassword.isEmpty,
+                                placeholder: "Re-enter your password",
+                                color: .white.opacity(0.5)
+                            ))
+                            .padding(14)
+                            .background(Color.white.opacity(0.08))
+                            .cornerRadius(12)
+                            .foregroundColor(.white)
+                    }
+
+                    // Error Message
+                    if let errorMessage = errorMessage {
+                        Text(errorMessage)
+                            .font(.caption)
+                            .foregroundColor(AppColors.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.top, 4)
+                    }
                 }
-                .padding(.horizontal)
+                .padding(20)
+                .background(Color.white.opacity(0.05))
+                .cornerRadius(20)
+                .padding(.horizontal, 20)
 
-                // ✅ Confirm Password Field
-                VStack(alignment: .leading, spacing: 5) {
-                    Text("Confirm Password")
-                        .font(.headline)
-                        .foregroundColor(AppColors.secondary)
-
-                    SecureField("", text: $confirmPassword)
-                        .modifier(PlaceholderModifier(
-                            showPlaceholder: confirmPassword.isEmpty,
-                            placeholder: "Re-enter Password",
-                            color: .white.opacity(0.8)
-                        ))
-                        .padding()
-                        .background(AppColors.complementary.opacity(0.2))
-                        .cornerRadius(10)
-                        .foregroundColor(.white)
-                }
-                .padding(.horizontal)
-
-                // ✅ Error Message
-                if let errorMessage = errorMessage {
-                    Text(errorMessage)
-                        .foregroundColor(.red)
-                        .padding()
-                }
-
-                // ✅ Sign-Up Button
+                // Sign-Up Button
                 Button(action: {
                     if password == confirmPassword {
                         authViewModel.signUp(email: email, password: password) { result in
@@ -108,7 +135,7 @@ struct SignupView: View {
                             case .success:
                                 errorMessage = nil
                                 DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-                                    dismiss() // ✅ Dismiss SignupView and return to LoginView
+                                    dismiss()
                                 }
                             case .failure(let error):
                                 errorMessage = authViewModel.getFriendlyErrorMessage(error)
@@ -121,55 +148,93 @@ struct SignupView: View {
                     Text("Sign Up")
                         .font(.headline)
                         .foregroundColor(.white)
-                        .padding()
                         .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
                         .background(AppColors.secondary)
-                        .cornerRadius(8)
+                        .cornerRadius(12)
                 }
-                .padding(.horizontal)
-
-                // ✅ Google Sign-Up Button
-                Button(action: {
-                    if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-                       let rootViewController = scene.windows.first?.rootViewController {
-                        authViewModel.signInWithGoogle(presenting: rootViewController) { result in
+                .padding(.horizontal, 20)
+                
+                // Social Sign-Up Buttons
+                VStack(spacing: 12) {
+                    // Google Sign-Up Button
+                    Button(action: {
+                        if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                           let rootViewController = scene.windows.first?.rootViewController {
+                            authViewModel.signInWithGoogle(presenting: rootViewController) { result in
+                                switch result {
+                                case .success:
+                                    print("Google Sign-Up successful")
+                                case .failure(let error):
+                                    errorMessage = authViewModel.getFriendlyErrorMessage(error)
+                                }
+                            }
+                        }
+                    }) {
+                        HStack(spacing: 12) {
+                            Image("GoogleLogo")
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 20, height: 20)
+                            
+                            Text("Sign up with Google")
+                                .font(.headline)
+                                .foregroundColor(.white)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(Color.white.opacity(0.08))
+                        .cornerRadius(12)
+                    }
+                    
+                    // Apple Sign-Up Button
+                    SignInWithAppleButton(
+                        onRequest: { request in
+                            let nonce = authViewModel.startSignInWithAppleFlow()
+                            request.requestedScopes = [.fullName, .email]
+                            request.nonce = nonce.sha256()
+                        },
+                        onCompletion: { result in
                             switch result {
-                            case .success:
-                                print("Google Sign-Up successful")
+                            case .success(let authorization):
+                                authViewModel.signInWithApple(authorization: authorization) { result in
+                                    switch result {
+                                    case .success:
+                                        print("Apple Sign-Up successful")
+                                    case .failure(let error):
+                                        errorMessage = authViewModel.getFriendlyErrorMessage(error)
+                                    }
+                                }
                             case .failure(let error):
                                 errorMessage = authViewModel.getFriendlyErrorMessage(error)
                             }
                         }
-                    }
-                }) {
-                    HStack {
-                        Image("GoogleLogo") // ✅ Ensure this asset exists in Xcode
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 24, height: 24)
-
-                        Text("Sign up with Google")
-                            .font(.headline)
-                            .foregroundColor(.white)
-                    }
-                    .padding()
-                    .frame(maxWidth: .infinity)
-                    .background(AppColors.complementary.opacity(0.3))
-                    .cornerRadius(8)
+                    )
+                    .signInWithAppleButtonStyle(.black)
+                    .frame(height: 50)
+                    .cornerRadius(12)
                 }
-                .padding(.horizontal)
+                .padding(.horizontal, 20)
 
-                // ✅ Navigation to Login
-                Button(action: {
-                    dismiss()
-                }) {
-                    Text("Already have an account? Log in")
-                        .foregroundColor(AppColors.secondary)
-                        .underline()
+                // Navigation to Login
+                HStack(spacing: 4) {
+                    Text("Already have an account?")
+                        .foregroundColor(.white.opacity(0.7))
+                        .font(.caption)
+                    
+                    Button(action: {
+                        dismiss()
+                    }) {
+                        Text("Sign In")
+                            .foregroundColor(AppColors.secondary)
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                    }
                 }
+                .padding(.top, 4)
+                .padding(.bottom, 20)
             }
-            .padding()
-            // ✅ Toast Notification
+            
             ToastView(message: authViewModel.toastMessage, isShowing: $authViewModel.showToast)
         }
         .toolbar {
@@ -183,6 +248,6 @@ struct SignupView: View {
                 }
             }
         }
-        .navigationBarBackButtonHidden(true) // ✅ Hides default back button
+        .navigationBarBackButtonHidden(true)
     }
 }

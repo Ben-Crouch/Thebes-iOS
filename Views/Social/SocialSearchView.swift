@@ -21,96 +21,95 @@ struct SocialSearchView: View {
     @State private var selectedUserId: String? = nil
     
     var body: some View {
-        VStack(spacing: 0) {
-            // Navigation Header
-            HStack {
-                Button(action: {
-                    dismiss()
-                }) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "chevron.left")
-                            .font(.title3)
-                            .foregroundColor(AppColors.secondary)
-                        
-                        Text("Back")
-                            .font(.headline)
-                            .foregroundColor(AppColors.secondary)
-                    }
-                }
-                .buttonStyle(PlainButtonStyle())
-                
-                Spacer()
-                
-                Text("Search Users")
-                    .font(.title2)
-                    .fontWeight(.bold)
-                    .foregroundColor(.white)
-                
-                Spacer()
-                
-                // Invisible spacer to center the title
-                HStack(spacing: 8) {
-                    Image(systemName: "chevron.left")
-                        .font(.title3)
-                        .opacity(0)
-                    
-                    Text("Back")
-                        .font(.headline)
-                        .opacity(0)
-                }
-            }
-            .padding(.horizontal, 20)
-            .padding(.top, 20)
+        ZStack {
+            // Gradient background
+            LinearGradient(
+                gradient: Gradient(colors: [
+                    Color.black,
+                    Color.black.opacity(0.8),
+                    Color.black
+                ]),
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .edgesIgnoringSafeArea(.all)
             
-            // Search Input
-            HStack(spacing: 12) {
-                Image(systemName: "magnifyingglass")
-                    .foregroundColor(AppColors.secondary)
-                    .font(.title3)
-                
-                TextField("", text: $searchText)
-                    .modifier(PlaceholderModifier(
-                        showPlaceholder: searchText.isEmpty,
-                        placeholder: "Search by name...",
-                        color: .white
-                    ))
-                    .foregroundColor(.white)
-                    .onSubmit {
-                        performSearch()
+            VStack(spacing: 0) {
+                // Header Section
+                VStack(spacing: 16) {
+                    HStack {
+                        Button(action: { dismiss() }) {
+                            Image(systemName: "chevron.left")
+                                .foregroundColor(AppColors.secondary)
+                                .font(.title2)
+                        }
+                        
+                        Spacer()
+                        
+                        Text("Search Users")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .foregroundColor(.white)
+                        
+                        Spacer()
+                        
+                        // Invisible spacer to center
+                        Image(systemName: "chevron.left")
+                            .foregroundColor(.clear)
+                            .font(.title2)
                     }
-                    .onChange(of: searchText) { newValue in
-                        if newValue.isEmpty {
-                            viewModel.clearResults()
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 20)
+                .padding(.bottom, 8)
+                
+                // Search Input
+                VStack(spacing: 16) {
+                    HStack(spacing: 12) {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundColor(AppColors.secondary)
+                            .font(.title3)
+                        
+                        TextField("", text: $searchText)
+                            .modifier(PlaceholderModifier(
+                                showPlaceholder: searchText.isEmpty,
+                                placeholder: "Search by name...",
+                                color: .gray
+                            ))
+                            .foregroundColor(.white)
+                            .onSubmit {
+                                performSearch()
+                            }
+                            .onChange(of: searchText) { newValue in
+                                if newValue.isEmpty {
+                                    viewModel.clearResults()
+                                }
+                            }
+                        
+                        if !searchText.isEmpty {
+                            Button {
+                                searchText = ""
+                                viewModel.clearResults()
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundColor(.gray)
+                            }
+                            .buttonStyle(.plain)
                         }
                     }
-                
-                if !searchText.isEmpty {
-                    Button {
-                        searchText = ""
-                        viewModel.clearResults()
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(.gray)
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            .padding(16)
-            .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(AppColors.primary)
-                    .overlay(
+                    .padding(16)
+                    .background(
                         RoundedRectangle(cornerRadius: 16)
-                            .stroke(AppColors.secondary.opacity(0.3), lineWidth: 1)
+                            .fill(Color.white.opacity(0.08))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 16)
+                                    .stroke(AppColors.secondary.opacity(0.3), lineWidth: 1)
+                            )
                     )
-            )
-            .padding(.horizontal, 20)
-            .padding(.top, 16)
-            
-            Divider()
-                .frame(height: 1)
-                .background(Color.white)
-                .padding(.vertical, 16)
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 8)
+                .padding(.bottom, 16)
             
             // Search Results
             if viewModel.isSearching {
@@ -194,8 +193,8 @@ struct SocialSearchView: View {
                     .padding(.bottom, 20)
                 }
             }
+            }
         }
-        .background(Color.black.edgesIgnoringSafeArea(.all))
         .onAppear {
             if !searchQuery.isEmpty {
                 searchText = searchQuery
@@ -303,10 +302,6 @@ struct UserSearchCard: View {
                     Text(user.displayName)
                         .font(.headline)
                         .foregroundColor(.white)
-                    
-                    Text(user.email)
-                        .font(.subheadline)
-                        .foregroundColor(.gray)
                 }
             }
             .buttonStyle(PlainButtonStyle())
@@ -341,7 +336,7 @@ struct UserSearchCard: View {
                 .padding(.vertical, 8)
                 .background(
                     RoundedRectangle(cornerRadius: 20)
-                        .fill(isFollowing ? AppColors.primary : AppColors.secondary)
+                        .fill(isFollowing ? Color.white.opacity(0.08) : AppColors.secondary)
                         .overlay(
                             RoundedRectangle(cornerRadius: 20)
                                 .stroke(AppColors.secondary, lineWidth: isFollowing ? 1 : 0)
@@ -353,11 +348,11 @@ struct UserSearchCard: View {
         }
         .padding(16)
         .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(AppColors.primary)
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color.white.opacity(0.05))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(AppColors.secondary.opacity(0.2), lineWidth: 1)
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(AppColors.secondary.opacity(0.3), lineWidth: 1)
                 )
         )
         .onAppear {

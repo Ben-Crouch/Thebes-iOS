@@ -14,60 +14,56 @@ struct FollowersView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var showUserProfile: Bool = false
     @State private var selectedUserId: String = ""
+    @State private var currentUserFollowing: [String] = []
     
     var body: some View {
-        VStack(spacing: 0) {
-            // Navigation Header
-            HStack {
-                Button(action: {
-                    dismiss()
-                }) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "chevron.left")
-                            .font(.title3)
-                            .foregroundColor(AppColors.secondary)
+        ZStack {
+            // Gradient background
+            LinearGradient(
+                gradient: Gradient(colors: [
+                    Color.black,
+                    Color.black.opacity(0.8),
+                    Color.black
+                ]),
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .edgesIgnoringSafeArea(.all)
+            
+            VStack(spacing: 0) {
+                // Header Section
+                VStack(spacing: 16) {
+                    HStack {
+                        Button(action: { dismiss() }) {
+                            Image(systemName: "chevron.left")
+                                .foregroundColor(AppColors.secondary)
+                                .font(.title2)
+                        }
                         
-                        Text("Back")
-                            .font(.headline)
-                            .foregroundColor(AppColors.secondary)
+                        Spacer()
+                        
+                        Text("Followers")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .foregroundColor(.white)
+                        
+                        Spacer()
+                        
+                        // Invisible spacer to center
+                        Image(systemName: "chevron.left")
+                            .foregroundColor(.clear)
+                            .font(.title2)
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("People who follow you")
+                            .font(.subheadline)
+                            .foregroundColor(.gray)
                     }
                 }
-                .buttonStyle(PlainButtonStyle())
-                
-                Spacer()
-                
-                Text("Followers")
-                    .font(.title2)
-                    .fontWeight(.bold)
-                    .foregroundColor(.white)
-                
-                Spacer()
-                
-                // Invisible spacer to center the title
-                HStack(spacing: 8) {
-                    Image(systemName: "chevron.left")
-                        .font(.title3)
-                        .opacity(0)
-                    
-                    Text("Back")
-                        .font(.headline)
-                        .opacity(0)
-                }
-            }
-            .padding(.horizontal, 20)
-            .padding(.top, 20)
-            
-            Text("People who follow you")
-                .font(.subheadline)
-                .foregroundColor(.gray)
-                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 20)
-                .padding(.top, 8)
-            
-            Divider()
-                .frame(height: 1)
-                .background(Color.white)
-                .padding(.vertical, 16)
+                .padding(.top, 20)
+                .padding(.bottom, 8)
             
             // Content
             if viewModel.isLoading {
@@ -122,10 +118,13 @@ struct FollowersView: View {
                             FollowerUserCard(
                                 user: user,
                                 currentUserId: authViewModel.user?.uid ?? "",
+                                isAlreadyFollowing: currentUserFollowing.contains(user.uid),
                                 onFollowBack: { userId in
                                     viewModel.followBackUser(userId: userId, currentUserId: authViewModel.user?.uid ?? "") { success in
                                         if success {
                                             print("✅ Successfully followed back user")
+                                            // Refresh following list
+                                            loadCurrentUserFollowing()
                                         }
                                     }
                                 },
@@ -140,11 +139,12 @@ struct FollowersView: View {
                     .padding(.bottom, 20)
                 }
             }
+            }
         }
-        .background(Color.black.edgesIgnoringSafeArea(.all))
         .onAppear {
             if let userId = authViewModel.user?.uid {
                 viewModel.fetchFollowers(for: userId)
+                loadCurrentUserFollowing()
             }
             
             // Set up callback to refresh social stats in parent view
@@ -154,13 +154,23 @@ struct FollowersView: View {
             UserProfileView(
                 userId: selectedUserId,
                 onSocialStatsChanged: {
-                    // Refresh followers list when user follows back from profile
+                    // Refresh followers list and following status when user follows/unfollows from profile
                     if let userId = authViewModel.user?.uid {
                         viewModel.fetchFollowers(for: userId)
+                        loadCurrentUserFollowing()
                     }
                 }
             )
             .environmentObject(authViewModel)
+        }
+    }
+    
+    private func loadCurrentUserFollowing() {
+        guard let userId = authViewModel.user?.uid else { return }
+        UserService.shared.fetchUserProfile(userId: userId) { profile in
+            DispatchQueue.main.async {
+                self.currentUserFollowing = profile?.following ?? []
+            }
         }
     }
 }
@@ -168,6 +178,7 @@ struct FollowersView: View {
 struct FollowerUserCard: View {
     let user: UserProfile
     let currentUserId: String
+    let isAlreadyFollowing: Bool
     let onFollowBack: (String) -> Void
     let onViewProfile: (String) -> Void
     
@@ -218,53 +229,51 @@ struct FollowerUserCard: View {
                     Text(user.displayName)
                         .font(.headline)
                         .foregroundColor(.white)
-                    
-                    Text(user.email)
-                        .font(.subheadline)
-                        .foregroundColor(.gray)
                 }
             }
             .buttonStyle(PlainButtonStyle())
             
             Spacer()
             
-            // Follow Back Button
-            Button(action: {
-                isFollowingBack = true
-                onFollowBack(user.uid)
-                
-                // Reset loading state after a short delay
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                    isFollowingBack = false
+            // Follow Back Button - only show if not already following
+            if !isAlreadyFollowing {
+                Button(action: {
+                    isFollowingBack = true
+                    onFollowBack(user.uid)
+                    
+                    // Reset loading state after a short delay
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                        isFollowingBack = false
+                    }
+                }) {
+                    if isFollowingBack {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                            .scaleEffect(0.8)
+                    } else {
+                        Text("Follow Back")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.white)
+                    }
                 }
-            }) {
-                if isFollowingBack {
-                    ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                        .scaleEffect(0.8)
-                } else {
-                    Text("Follow Back")
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.white)
-                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .background(
+                    RoundedRectangle(cornerRadius: 20)
+                        .fill(AppColors.secondary)
+                )
+                .buttonStyle(PlainButtonStyle())
+                .disabled(isFollowingBack)
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
-            .background(
-                RoundedRectangle(cornerRadius: 20)
-                    .fill(AppColors.secondary)
-            )
-            .buttonStyle(PlainButtonStyle())
-            .disabled(isFollowingBack)
         }
         .padding(16)
         .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(AppColors.primary)
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color.white.opacity(0.05))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(AppColors.secondary.opacity(0.2), lineWidth: 1)
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(AppColors.secondary.opacity(0.3), lineWidth: 1)
                 )
         )
     }

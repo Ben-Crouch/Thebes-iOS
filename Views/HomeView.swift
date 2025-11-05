@@ -68,49 +68,27 @@ var body: some View {
             viewModel.loadUserProfile(for: userId)
             viewModel.loadMostRecentWorkout(for: userId)
         }
-        if showSideMenu {
-            Color.black.opacity(0.4)
-                .edgesIgnoringSafeArea(.all)
-                .onTapGesture {
-                    withAnimation {
-                        showSideMenu = false
-                    }
-                }
-
-            VStack(alignment: .leading, spacing: 20) {
-                Button("User Settings") {
-                    // Navigate to user settings
-                }
-                .foregroundColor(.white)
-
-                Button("Log Out") {
-                    authViewModel.signOut()
-                }
-                .foregroundColor(.white)
-
-                Spacer()
+        // Side Menu
+        SideMenuView(
+            isPresented: $showSideMenu,
+            username: viewModel.username,
+            profileImageUrl: viewModel.profileImageUrl,
+            userEmail: authViewModel.user?.email,
+            onViewProfile: {
+                // TODO: Navigate to user's own profile
+            },
+            onSettings: {
+                // TODO: Navigate to settings
+            },
+            onAbout: {
+                // TODO: Show about screen
+            },
+            onLogOut: {
+                authViewModel.signOut()
             }
-            .padding()
-            .frame(width: 250)
-            .background(AppColors.secondary)
-            .transition(.move(edge: .trailing))
-            .frame(maxWidth: .infinity, alignment: .trailing)
-        }
+        )
     }
 }
-        
-        /*private var logoutButton: some View {
-         Button(action: { authViewModel.signOut() }) {
-         Text("Logout")
-         .font(.headline)
-         .foregroundColor(.white)
-         .padding()
-         .frame(maxWidth: .infinity)
-         .background(Color.red)
-         .cornerRadius(8)
-         }
-         .padding()
-         }*/
     
     struct ProfileHeaderView: View {
         @ObservedObject var viewModel: HomeViewModel

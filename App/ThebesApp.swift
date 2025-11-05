@@ -34,6 +34,9 @@ struct ThebesApp: App {
                 }
             }
             .environmentObject(authViewModel) // ✅ Pass the authViewModel to all views
+            .toolbarBackground(.clear, for: .navigationBar)
+            .toolbarColorScheme(.dark, for: .navigationBar)
+            .background(Color.clear) // Ensure NavigationView background is clear
         }
     }
 }

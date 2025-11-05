@@ -16,58 +16,53 @@ struct FollowingView: View {
     @State private var selectedUserId: String = ""
     
     var body: some View {
-        VStack(spacing: 0) {
-            // Navigation Header
-            HStack {
-                Button(action: {
-                    dismiss()
-                }) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "chevron.left")
-                            .font(.title3)
-                            .foregroundColor(AppColors.secondary)
+        ZStack {
+            // Gradient background
+            LinearGradient(
+                gradient: Gradient(colors: [
+                    Color.black,
+                    Color.black.opacity(0.8),
+                    Color.black
+                ]),
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .edgesIgnoringSafeArea(.all)
+            
+            VStack(spacing: 0) {
+                // Header Section
+                VStack(spacing: 16) {
+                    HStack {
+                        Button(action: { dismiss() }) {
+                            Image(systemName: "chevron.left")
+                                .foregroundColor(AppColors.secondary)
+                                .font(.title2)
+                        }
                         
-                        Text("Back")
-                            .font(.headline)
-                            .foregroundColor(AppColors.secondary)
+                        Spacer()
+                        
+                        Text("Following")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .foregroundColor(.white)
+                        
+                        Spacer()
+                        
+                        // Invisible spacer to center
+                        Image(systemName: "chevron.left")
+                            .foregroundColor(.clear)
+                            .font(.title2)
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("People you're following")
+                            .font(.subheadline)
+                            .foregroundColor(.gray)
                     }
                 }
-                .buttonStyle(PlainButtonStyle())
-                
-                Spacer()
-                
-                Text("Following")
-                    .font(.title2)
-                    .fontWeight(.bold)
-                    .foregroundColor(.white)
-                
-                Spacer()
-                
-                // Invisible spacer to center the title
-                HStack(spacing: 8) {
-                    Image(systemName: "chevron.left")
-                        .font(.title3)
-                        .opacity(0)
-                    
-                    Text("Back")
-                        .font(.headline)
-                        .opacity(0)
-                }
-            }
-            .padding(.horizontal, 20)
-            .padding(.top, 20)
-            
-            Text("People you're following")
-                .font(.subheadline)
-                .foregroundColor(.gray)
-                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 20)
-                .padding(.top, 8)
-            
-            Divider()
-                .frame(height: 1)
-                .background(Color.white)
-                .padding(.vertical, 16)
+                .padding(.top, 20)
+                .padding(.bottom, 8)
             
             // Content
             if viewModel.isLoading {
@@ -141,8 +136,8 @@ struct FollowingView: View {
                     .padding(.bottom, 20)
                 }
             }
+            }
         }
-        .background(Color.black.edgesIgnoringSafeArea(.all))
         .onAppear {
             if let userId = authViewModel.user?.uid {
                 viewModel.fetchFollowing(for: userId)
@@ -219,10 +214,6 @@ struct FollowingUserCard: View {
                     Text(user.displayName)
                         .font(.headline)
                         .foregroundColor(.white)
-                    
-                    Text(user.email)
-                        .font(.subheadline)
-                        .foregroundColor(.gray)
                 }
             }
             .buttonStyle(PlainButtonStyle())
@@ -254,7 +245,7 @@ struct FollowingUserCard: View {
             .padding(.vertical, 8)
             .background(
                 RoundedRectangle(cornerRadius: 20)
-                    .fill(AppColors.primary)
+                    .fill(Color.white.opacity(0.08))
                     .overlay(
                         RoundedRectangle(cornerRadius: 20)
                             .stroke(AppColors.secondary, lineWidth: 1)
@@ -265,11 +256,11 @@ struct FollowingUserCard: View {
         }
         .padding(16)
         .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(AppColors.primary)
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color.white.opacity(0.05))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(AppColors.secondary.opacity(0.2), lineWidth: 1)
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(AppColors.secondary.opacity(0.3), lineWidth: 1)
                 )
         )
     }

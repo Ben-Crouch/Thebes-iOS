@@ -25,62 +25,114 @@ class SocialService {
     func fetchSearchedUsers(userDisplayName: String, completion: @escaping ([UserProfile]) -> Void) {
         print("🔎 Searching users with display name containing: \(userDisplayName)")
         
-        db.collection("users")
-            .whereField("displayName", isGreaterThanOrEqualTo: userDisplayName)
-            .whereField("displayName", isLessThan: userDisplayName + "\u{f8ff}") // ✅ allows partial search
-            .getDocuments { snapshot, error in
-                if let error = error {
-                    print("❌ Error fetching users: \(error.localizedDescription)")
-                    completion([])
-                    return
+        // Normalize query for case-insensitive search
+        let lowerQuery = userDisplayName.lowercased()
+        let capitalizedQuery = userDisplayName.capitalized
+        
+        // Helper function to convert documents to UserProfile
+        let convertDocuments: ([QueryDocumentSnapshot]) -> [UserProfile] = { documents in
+            documents.compactMap { doc in
+                // Try to parse as UserProfile first (real users)
+                if let userProfile = try? doc.data(as: UserProfile.self) {
+                    return userProfile
                 }
                 
-                guard let documents = snapshot?.documents else {
-                    print("⚠️ No users found")
-                    completion([])
-                    return
-                }
-                
-                // Convert both real users and mock users to UserProfile format
-                let users: [UserProfile] = documents.compactMap { doc in
-                    // Try to parse as UserProfile first (real users)
-                    if let userProfile = try? doc.data(as: UserProfile.self) {
-                        return userProfile
-                    }
+                // Try to parse as MockUserProfile and convert to UserProfile
+                if let mockUser = try? doc.data(as: MockUserProfile.self) {
+                    print("🔍 SocialService: Converting mock user \(mockUser.displayName)")
+                    print("🔍 SocialService: Document ID = '\(doc.documentID)'")
+                    print("🔍 SocialService: Document ID isEmpty = \(doc.documentID.isEmpty)")
                     
-                    // Try to parse as MockUserProfile and convert to UserProfile
-                    if let mockUser = try? doc.data(as: MockUserProfile.self) {
-                        print("🔍 SocialService: Converting mock user \(mockUser.displayName)")
-                        print("🔍 SocialService: Document ID = '\(doc.documentID)'")
-                        print("🔍 SocialService: Document ID isEmpty = \(doc.documentID.isEmpty)")
-                        
-                        // Convert MockUserProfile to UserProfile format
-                        let convertedUser = UserProfile(
-                            id: mockUser.id,
-                            uid: doc.documentID, // Use document ID as uid for mock users
-                            displayName: mockUser.displayName,
-                            email: mockUser.email,
-                            profilePic: nil, // Mock users don't have profile pics
-                            createdAt: Date(), // Default date for mock users
-                            preferredWeightUnit: mockUser.preferredWeightUnit,
-                            trackedExercise: nil,
-                            followers: [], // Empty arrays for mock users initially
-                            following: [] // Empty arrays for mock users initially
-                        )
-                        
-                        print("🔍 SocialService: Converted user uid = '\(convertedUser.uid)'")
-                        print("🔍 SocialService: Converted user uid isEmpty = \(convertedUser.uid.isEmpty)")
-                        print("🔍 SocialService: Converted user object: \(convertedUser)")
-                        
-                        return convertedUser
-                    }
+                    // Convert MockUserProfile to UserProfile format
+                    let convertedUser = UserProfile(
+                        id: mockUser.id,
+                        uid: doc.documentID, // Use document ID as uid for mock users
+                        displayName: mockUser.displayName,
+                        email: mockUser.email,
+                        profilePic: nil, // Mock users don't have profile pics
+                        createdAt: Date(), // Default date for mock users
+                        preferredWeightUnit: mockUser.preferredWeightUnit,
+                        trackedExercise: nil,
+                        followers: [], // Empty arrays for mock users initially
+                        following: [] // Empty arrays for mock users initially
+                    )
                     
-                    return nil
+                    print("🔍 SocialService: Converted user uid = '\(convertedUser.uid)'")
+                    print("🔍 SocialService: Converted user uid isEmpty = \(convertedUser.uid.isEmpty)")
+                    print("🔍 SocialService: Converted user object: \(convertedUser)")
+                    
+                    return convertedUser
                 }
                 
-                print("✅ Found \(users.count) matching users (real + mock)")
-                completion(users)
+                return nil
             }
+        }
+        
+        // Query with original case
+        let query1 = db.collection("users")
+            .whereField("displayName", isGreaterThanOrEqualTo: userDisplayName)
+            .whereField("displayName", isLessThan: userDisplayName + "\u{f8ff}")
+        
+        // Query with lowercase
+        let query2 = db.collection("users")
+            .whereField("displayName", isGreaterThanOrEqualTo: lowerQuery)
+            .whereField("displayName", isLessThan: lowerQuery + "\u{f8ff}")
+        
+        // Query with capitalized
+        let query3 = db.collection("users")
+            .whereField("displayName", isGreaterThanOrEqualTo: capitalizedQuery)
+            .whereField("displayName", isLessThan: capitalizedQuery + "\u{f8ff}")
+        
+        // Use dispatch group to wait for all queries
+        let group = DispatchGroup()
+        var allUsers: [UserProfile] = []
+        
+        // Query 1: Original case
+        group.enter()
+        query1.getDocuments { snapshot, error in
+            if let documents = snapshot?.documents {
+                allUsers.append(contentsOf: convertDocuments(documents))
+            }
+            group.leave()
+        }
+        
+        // Query 2: Lowercase
+        group.enter()
+        query2.getDocuments { snapshot, error in
+            if let documents = snapshot?.documents {
+                allUsers.append(contentsOf: convertDocuments(documents))
+            }
+            group.leave()
+        }
+        
+        // Query 3: Capitalized
+        group.enter()
+        query3.getDocuments { snapshot, error in
+            if let documents = snapshot?.documents {
+                allUsers.append(contentsOf: convertDocuments(documents))
+            }
+            group.leave()
+        }
+        
+        // Wait for all queries and filter case-insensitively
+        group.notify(queue: .main) {
+            // Remove duplicates based on uid
+            var uniqueUsers: [UserProfile] = []
+            var seenUids: Set<String> = []
+            
+            for user in allUsers {
+                if !seenUids.contains(user.uid) {
+                    // Final case-insensitive filter
+                    if user.displayName.lowercased().contains(lowerQuery) {
+                        uniqueUsers.append(user)
+                        seenUids.insert(user.uid)
+                    }
+                }
+            }
+            
+            print("✅ Found \(uniqueUsers.count) matching users (real + mock) after case-insensitive filtering")
+            completion(uniqueUsers)
+        }
     }
     
     func fetchFollowingUsers(userId: String, completion: @escaping ([UserProfile]) -> Void) {
