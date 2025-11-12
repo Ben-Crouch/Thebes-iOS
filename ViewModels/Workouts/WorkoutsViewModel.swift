@@ -12,6 +12,7 @@ class WorkoutsViewModel: ObservableObject {
     @Published var profileImageUrl: String? = nil
     @Published var workoutCountLast30Days: Int = 0
     @Published var mostRecentWorkout: Workout? = nil
+    @Published var tagline: UserTagline = .fitnessEnthusiast
     
     func loadUserProfile(for userId: String) {
         guard !userId.isEmpty else {
@@ -23,6 +24,8 @@ class WorkoutsViewModel: ObservableObject {
                 guard let profile = userProfile else { return }
                 self.username = profile.displayName
                 self.profileImageUrl = profile.profilePic
+                AppSettings.shared.updatePreferredUnit(WeightUnit(fromPreferredUnit: profile.preferredWeightUnit))
+                self.tagline = UserTagline.from(rawValue: profile.tagline)
             }
         }
     }

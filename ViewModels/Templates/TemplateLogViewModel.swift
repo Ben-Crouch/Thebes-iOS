@@ -51,11 +51,8 @@ class TemplateLogViewModel: ObservableObject, ExerciseHandlingProtocol {
         let newWeightValue = lastSet?.weight
         let newRestTime = lastSet?.restTime
 
-        let unit = AppSettings.shared.preferredUnit
-        let convertedWeight = unit == "lbs" ? (newWeightValue ?? 0.0) / 2.20462 : newWeightValue
-
         exercises[exerciseIndex].sets.append(
-            SetData(reps: newReps, weight: newWeightValue == nil ? nil : convertedWeight, restTime: newRestTime)
+            SetData(reps: newReps, weight: newWeightValue, restTime: newRestTime)
         )
     }
 

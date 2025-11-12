@@ -8,6 +8,21 @@
 import Foundation
 
 class AppSettings: ObservableObject {
-    @Published var preferredUnit: String = "kg" // Default unit
     static let shared = AppSettings()
+    
+    @Published var preferredWeightUnit: WeightUnit = .kilograms
+    
+    private init() {}
+    
+    var preferredUnitSymbol: String {
+        preferredWeightUnit.symbol
+    }
+    
+    var preferredUnitString: String {
+        preferredWeightUnit.preferredUnitString
+    }
+    
+    func updatePreferredUnit(_ unit: WeightUnit) {
+        preferredWeightUnit = unit
+    }
 }

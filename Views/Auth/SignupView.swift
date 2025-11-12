@@ -18,6 +18,14 @@ struct SignupView: View {
     @State private var errorMessage: String?
     @State private var successMessage: String?
     @Environment(\.presentationMode) var presentationMode
+    
+    private var isPasswordValid: Bool {
+        password.count >= 8 &&
+        password.rangeOfCharacter(from: CharacterSet.uppercaseLetters) != nil &&
+        password.rangeOfCharacter(from: CharacterSet.lowercaseLetters) != nil &&
+        password.rangeOfCharacter(from: CharacterSet.decimalDigits) != nil &&
+        password.rangeOfCharacter(from: CharacterSet(charactersIn: "!@#$%^&*()_+-=[]{}|;:,.<>?")) != nil
+    }
 
     var body: some View {
         ZStack {
@@ -92,6 +100,10 @@ struct SignupView: View {
                             .background(Color.white.opacity(0.08))
                             .cornerRadius(12)
                             .foregroundColor(.white)
+                        
+                        // Password Strength Indicator
+                        PasswordStrengthIndicator(password: password)
+                            .padding(.top, 4)
                     }
 
                     // Confirm Password Field
@@ -129,20 +141,29 @@ struct SignupView: View {
 
                 // Sign-Up Button
                 Button(action: {
-                    if password == confirmPassword {
-                        authViewModel.signUp(email: email, password: password) { result in
-                            switch result {
-                            case .success:
-                                errorMessage = nil
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-                                    dismiss()
-                                }
-                            case .failure(let error):
-                                errorMessage = authViewModel.getFriendlyErrorMessage(error)
-                            }
-                        }
-                    } else {
+                    // Validate password strength
+                    guard isPasswordValid else {
+                        errorMessage = "Password must meet all requirements."
+                        return
+                    }
+                    
+                    // Validate password match
+                    guard password == confirmPassword else {
                         errorMessage = "Passwords do not match."
+                        return
+                    }
+                    
+                    // Proceed with sign up
+                    authViewModel.signUp(email: email, password: password) { result in
+                        switch result {
+                        case .success:
+                            errorMessage = nil
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                                dismiss()
+                            }
+                        case .failure(let error):
+                            errorMessage = authViewModel.getFriendlyErrorMessage(error)
+                        }
                     }
                 }) {
                     Text("Sign Up")

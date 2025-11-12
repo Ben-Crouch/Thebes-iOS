@@ -11,6 +11,7 @@ struct WorkoutsView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
     @StateObject private var viewModel = WorkoutsViewModel()
     @State private var showSideMenu = false
+    @State private var showSettingsView = false
     
     var body: some View {
         ZStack(alignment: .top) {
@@ -69,7 +70,7 @@ struct WorkoutsView: View {
                     // TODO: Navigate to user's own profile
                 },
                 onSettings: {
-                    // TODO: Navigate to settings
+                    showSettingsView = true
                 },
                 onAbout: {
                     // TODO: Show about screen
@@ -78,6 +79,10 @@ struct WorkoutsView: View {
                     authViewModel.signOut()
                 }
             )
+        }
+        .navigationDestination(isPresented: $showSettingsView) {
+            ProfileSettingsView()
+                .environmentObject(authViewModel)
         }
     }
 }
@@ -120,7 +125,7 @@ struct WorkoutHeaderView: View {
                         .fontWeight(.bold)
                         .foregroundColor(.white)
                     
-                    Text("Fitness Enthusiast")
+                    Text(viewModel.tagline.displayText)
                         .font(.subheadline)
                         .foregroundColor(.gray)
                 }

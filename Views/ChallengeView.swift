@@ -12,6 +12,7 @@ struct ChallengeView: View {
     @State private var showSideMenu = false
     @State private var username: String = "User"
     @State private var profileImageUrl: String? = nil
+    @State private var showSettingsView = false
     
     var body: some View {
         ZStack(alignment: .top) {
@@ -63,7 +64,7 @@ struct ChallengeView: View {
                     // TODO: Navigate to user's own profile
                 },
                 onSettings: {
-                    // TODO: Navigate to settings
+                    showSettingsView = true
                 },
                 onAbout: {
                     // TODO: Show about screen
@@ -72,6 +73,10 @@ struct ChallengeView: View {
                     authViewModel.signOut()
                 }
             )
+        }
+        .navigationDestination(isPresented: $showSettingsView) {
+            ProfileSettingsView()
+                .environmentObject(authViewModel)
         }
         .onAppear {
             // Load user profile for side menu

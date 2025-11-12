@@ -22,7 +22,8 @@ class UserService {
             "email": user.email ?? "",
             "profilePic": user.photoURL?.absoluteString ?? "",
             "createdAt": Timestamp(),
-            "preferredWeightUnit": "kg"
+            "preferredWeightUnit": "kg",
+            "tagline": UserTagline.fitnessEnthusiast.rawValue
         ]
         
         userDoc.setData(userData, merge: true) { error in
@@ -99,6 +100,7 @@ class UserService {
                     createdAt: Date(),
                     preferredWeightUnit: mockUser.preferredWeightUnit,
                     trackedExercise: nil,
+                    tagline: mockUser.tagline ?? UserTagline.fitnessEnthusiast.rawValue,
                     followers: followers, // Use actual followers from document
                     following: following // Use actual following from document
                 )

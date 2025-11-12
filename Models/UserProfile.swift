@@ -16,6 +16,7 @@ struct UserProfile: Codable, Identifiable {
     var createdAt: Date
     var preferredWeightUnit: String
     var trackedExercise: String?
+    var tagline: String?
     var followers: [String]
     var following: [String]
 }

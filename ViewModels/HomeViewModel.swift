@@ -15,6 +15,7 @@ class HomeViewModel: ObservableObject {
     @Published var workoutCountLast30Days: Int = 0
     @Published var mostRecentWorkout: Workout? = nil
     @Published var trackedExercise: String? = nil
+    @Published var tagline: UserTagline = .fitnessEnthusiast
     
     func loadUserProfile(for userId: String) {
         guard !userId.isEmpty else {
@@ -29,6 +30,8 @@ class HomeViewModel: ObservableObject {
                 self.followerCount = profile.followers.count
                 self.followingCount = profile.following.count
                 self.trackedExercise = profile.trackedExercise
+                AppSettings.shared.updatePreferredUnit(WeightUnit(fromPreferredUnit: profile.preferredWeightUnit))
+                self.tagline = UserTagline.from(rawValue: profile.tagline)
             }
         }
     }

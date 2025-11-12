@@ -11,6 +11,7 @@ struct TemplateDetailView: View {
     @StateObject private var viewModel: TemplateDetailViewModel // ✅ Uses ViewModel for Templates
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject var authViewModel: AuthViewModel
+    @ObservedObject private var appSettings = AppSettings.shared
     @State private var showEdit = false
 
     init(template: Template, currentUserId: String) {
@@ -160,7 +161,7 @@ struct TemplateDetailView: View {
     // ✅ Exercise Summary View
     private func exerciseSummaryView(for exercise: Exercise) -> some View {
         let hasWeightedSets = exercise.sets.contains { $0.weight != nil }
-        let weightUnit = AppSettings.shared.preferredUnit
+        let weightUnit = appSettings.preferredWeightUnit
         let isExpanded = viewModel.expandedExercises.contains(exercise.id ?? "")
 
         return VStack(alignment: .leading, spacing: 12) {
@@ -209,7 +210,7 @@ struct TemplateDetailView: View {
         .animation(.easeInOut(duration: 0.3), value: viewModel.expandedExercises)
     }
     
-    private func expandedExerciseDetail(for exercise: Exercise, hasWeightedSets: Bool, weightUnit: String) -> some View {
+    private func expandedExerciseDetail(for exercise: Exercise, hasWeightedSets: Bool, weightUnit: WeightUnit) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Text("Reps")
@@ -219,7 +220,7 @@ struct TemplateDetailView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
 
                 if hasWeightedSets {
-                    Text("Weight (\(weightUnit))")
+                    Text("Weight (\(weightUnit.symbol))")
                         .font(.caption)
                         .fontWeight(.semibold)
                         .foregroundColor(AppColors.secondary)
@@ -235,7 +236,7 @@ struct TemplateDetailView: View {
                 }
 
                 if hasWeightedSets {
-                    Text("1RM (\(weightUnit))")
+                    Text("1RM (\(weightUnit.symbol))")
                         .font(.caption)
                         .fontWeight(.semibold)
                         .foregroundColor(AppColors.secondary)
@@ -266,7 +267,8 @@ struct TemplateDetailView: View {
     // ✅ Set Detail View
     private func setDetailRow(for set: SetData, index: Int, in exercise: Exercise) -> some View {
         let isWeighted = set.weight != nil
-        let oneRepMax: Double? = isWeighted ? (set.weight! * (1 + Double(set.reps) / 30)) : nil
+        let oneRepMaxKG: Double? = isWeighted ? (set.weight! * (1 + Double(set.reps) / 30)) : nil
+        let unit = appSettings.preferredWeightUnit
 
         return HStack {
             Text("\(set.reps)")
@@ -275,7 +277,7 @@ struct TemplateDetailView: View {
                 .foregroundColor(.white)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-            Text(set.weight.map { String(format: "%.1f", $0) } ?? "Bodyweight")
+            Text(set.weight.map { unit.formattedWeight(fromKilograms: $0) } ?? "Bodyweight")
                 .font(.subheadline)
                 .foregroundColor(.white)
                 .frame(maxWidth: .infinity, alignment: .center)
@@ -287,8 +289,8 @@ struct TemplateDetailView: View {
                     .frame(maxWidth: .infinity, alignment: .center)
             }
 
-            if let oneRepMax = oneRepMax {
-                Text(String(format: "%.1f", oneRepMax))
+            if let oneRepMax = oneRepMaxKG {
+                Text(String(format: "%.1f", unit.convertFromKilograms(oneRepMax)))
                     .font(.subheadline)
                     .fontWeight(.semibold)
                     .foregroundColor(AppColors.secondary)

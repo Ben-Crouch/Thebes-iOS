@@ -67,6 +67,7 @@ struct SocialView: View {
     @State private var showFollowersView: Bool = false
     @State private var showFollowingView: Bool = false
     @State private var showRecentActivity: Bool = false
+    @State private var showSettingsView: Bool = false
     
     var body: some View {
         ZStack(alignment: .top) {
@@ -282,7 +283,7 @@ struct SocialView: View {
                     // TODO: Navigate to user's own profile
                 },
                 onSettings: {
-                    // TODO: Navigate to settings
+                    showSettingsView = true
                 },
                 onAbout: {
                     // TODO: Show about screen
@@ -291,6 +292,10 @@ struct SocialView: View {
                     authViewModel.signOut()
                 }
             )
+        }
+        .navigationDestination(isPresented: $showSettingsView) {
+            ProfileSettingsView()
+                .environmentObject(authViewModel)
         }
         .onAppear {
             if let userId = authViewModel.user?.uid {

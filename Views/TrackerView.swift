@@ -12,6 +12,7 @@ struct TrackerView: View {
     @ObservedObject var viewModel: TrackerViewModel
     @EnvironmentObject var authViewModel: AuthViewModel
     @State private var showSideMenu = false
+    @State private var showSettingsView = false
 
     var body: some View {
         ZStack(alignment: .top) {
@@ -202,7 +203,7 @@ struct TrackerView: View {
                                 Image(systemName: "scalemass")
                                     .font(.caption)
                                     .foregroundColor(AppColors.secondary)
-                                Text(viewModel.preferredWeightUnit)
+                                Text(viewModel.preferredWeightUnit.displayName)
                                     .font(.subheadline)
                                     .fontWeight(.medium)
                                     .foregroundColor(AppColors.secondary)
@@ -254,12 +255,14 @@ struct TrackerView: View {
                                 .frame(height: 280)
                                 .frame(maxWidth: .infinity)
                             } else {
+                                let unit = viewModel.preferredWeightUnit
                                 Chart(viewModel.trackedExercises) { exercise in
                             if let date = exercise.date,
                                let maxWeight = exercise.sets.map({ $0.weight ?? 0 }).max() {
+                                let convertedWeight = unit.convertFromKilograms(maxWeight)
                                 LineMark(
                                     x: .value("Date", date),
-                                    y: .value("Weight", maxWeight)
+                                    y: .value("Weight", convertedWeight)
                                 )
                                 .foregroundStyle(
                                     LinearGradient(
@@ -272,7 +275,7 @@ struct TrackerView: View {
                                 
                                 AreaMark(
                                     x: .value("Date", date),
-                                    y: .value("Weight", maxWeight)
+                                    y: .value("Weight", convertedWeight)
                                 )
                                 .foregroundStyle(
                                     LinearGradient(
@@ -285,7 +288,7 @@ struct TrackerView: View {
                                 // Data point dots
                                 PointMark(
                                     x: .value("Date", date),
-                                    y: .value("Weight", maxWeight)
+                                    y: .value("Weight", convertedWeight)
                                 )
                                 .foregroundStyle(AppColors.secondary)
                                 .symbolSize(60)
@@ -299,7 +302,7 @@ struct TrackerView: View {
                                         .foregroundStyle(Color.white.opacity(0.2))
                                     AxisTick()
                                         .foregroundStyle(Color.white.opacity(0.4))
-                                    AxisValueLabel("\(Int(doubleValue)) \(viewModel.preferredWeightUnit)")
+                                    AxisValueLabel("\(Int(doubleValue)) \(viewModel.preferredWeightUnit.symbol)")
                                         .foregroundStyle(.white)
                                 }
                             }
@@ -394,7 +397,9 @@ struct TrackerView: View {
                                 title: viewModel.isBodyweightExercise ? "Best Reps" : "Best EORM",
                                 value: viewModel.isBodyweightExercise
                                     ? "\(viewModel.bestReps)"
-                                    : String(format: "%.1f", viewModel.bestEORM),
+                                    : String(format: "%.1f %@",
+                                             viewModel.preferredWeightUnit.convertFromKilograms(viewModel.bestEORM),
+                                             viewModel.preferredWeightUnit.symbol),
                                 icon: "trophy.fill",
                                 color: .orange
                             )
@@ -403,7 +408,9 @@ struct TrackerView: View {
                                 title: "Change",
                                 value: viewModel.isBodyweightExercise
                                     ? "\(viewModel.repsChange)"
-                                    : String(format: "%.1f", viewModel.eormChange),
+                                    : String(format: "%.1f %@",
+                                             viewModel.preferredWeightUnit.convertFromKilograms(viewModel.eormChange),
+                                             viewModel.preferredWeightUnit.symbol),
                                 icon: viewModel.isBodyweightExercise
                                     ? (viewModel.repsChange >= 0 ? "arrow.up.circle.fill" : "arrow.down.circle.fill")
                                     : (viewModel.eormChange >= 0 ? "arrow.up.circle.fill" : "arrow.down.circle.fill"),
@@ -424,7 +431,9 @@ struct TrackerView: View {
                         HStack(spacing: 12) {
                             StatCard(
                                 title: "Total Volume",
-                                value: String(format: "%.0f %@", viewModel.totalVolume, viewModel.preferredWeightUnit),
+                                value: String(format: "%.0f %@",
+                                              viewModel.preferredWeightUnit.convertFromKilograms(viewModel.totalVolume),
+                                              viewModel.preferredWeightUnit.symbol),
                                 icon: "scalemass.fill",
                                 color: .blue
                             )
@@ -438,7 +447,9 @@ struct TrackerView: View {
                             
                             StatCard(
                                 title: "Avg Volume",
-                                value: String(format: "%.0f %@", viewModel.averageVolumePerSession, viewModel.preferredWeightUnit),
+                                value: String(format: "%.0f %@",
+                                              viewModel.preferredWeightUnit.convertFromKilograms(viewModel.averageVolumePerSession),
+                                              viewModel.preferredWeightUnit.symbol),
                                 icon: "chart.bar.xaxis",
                                 color: .cyan
                             )
@@ -462,7 +473,9 @@ struct TrackerView: View {
                             
                             StatCard(
                                 title: "Best Session",
-                                value: String(format: "%.0f %@", viewModel.bestSessionVolume, viewModel.preferredWeightUnit),
+                                value: String(format: "%.0f %@",
+                                              viewModel.preferredWeightUnit.convertFromKilograms(viewModel.bestSessionVolume),
+                                              viewModel.preferredWeightUnit.symbol),
                                 icon: "star.fill",
                                 color: .pink
                             )
@@ -498,7 +511,7 @@ struct TrackerView: View {
                     // TODO: Navigate to user's own profile
                 },
                 onSettings: {
-                    // TODO: Navigate to settings
+                    showSettingsView = true
                 },
                 onAbout: {
                     // TODO: Show about screen
@@ -507,6 +520,10 @@ struct TrackerView: View {
                     authViewModel.signOut()
                 }
             )
+        }
+        .navigationDestination(isPresented: $showSettingsView) {
+            ProfileSettingsView()
+                .environmentObject(authViewModel)
         }
     }
 }

@@ -17,6 +17,7 @@ struct WorkoutDetailView: View {
     @State private var showTemplateSheet = false
     @State private var templateTitle = ""
     @State private var showEdit = false
+    @ObservedObject private var appSettings = AppSettings.shared
 
     var body: some View {
         ZStack {
@@ -230,7 +231,7 @@ struct WorkoutDetailView: View {
 
     private func exerciseSummaryView(for exercise: Exercise) -> some View {
         let hasWeightedSets = exercise.sets.contains { $0.weight != nil }
-        let weightUnit = AppSettings.shared.preferredUnit
+        let weightUnit = appSettings.preferredWeightUnit
 
         return VStack(alignment: .leading, spacing: 12) {
             HStack {
@@ -273,7 +274,7 @@ struct WorkoutDetailView: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
 
                         if hasWeightedSets {
-                            Text("Weight (\(weightUnit))")
+                            Text("Weight (\(weightUnit.symbol))")
                                 .font(.caption)
                                 .fontWeight(.semibold)
                                 .foregroundColor(AppColors.secondary)
@@ -289,7 +290,7 @@ struct WorkoutDetailView: View {
                         }
 
                         if hasWeightedSets {
-                            Text("1RM (\(weightUnit))")
+                            Text("1RM (\(weightUnit.symbol))")
                                 .font(.caption)
                                 .fontWeight(.semibold)
                                 .foregroundColor(AppColors.secondary)
@@ -330,9 +331,66 @@ struct WorkoutDetailView: View {
         .animation(.easeInOut(duration: 0.3), value: viewModel.expandedExercises)
     }
 
+    private func expandedExerciseDetail(for exercise: Exercise, hasWeightedSets: Bool, weightUnit: WeightUnit) -> some View {
+        return VStack(alignment: .leading, spacing: 12) {
+            // Column headers
+            HStack {
+                Text("Reps")
+                    .font(.caption)
+                    .fontWeight(.semibold)
+                    .foregroundColor(AppColors.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                if hasWeightedSets {
+                    Text("Weight (\(weightUnit.symbol))")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundColor(AppColors.secondary)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                }
+
+                if exercise.sets.contains(where: { $0.restTime != nil }) {
+                    Text("Rest(s)")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundColor(AppColors.secondary)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                }
+
+                if hasWeightedSets {
+                    Text("1RM (\(weightUnit.symbol))")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundColor(AppColors.secondary)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                }
+            }
+            .padding(.horizontal, 4)
+
+            // Sets list
+            LazyVStack(spacing: 8) {
+                ForEach(exercise.sets.indices, id: \.self) { index in
+                    let set = exercise.sets[index]
+                    setDetailRow(for: set, index: index, in: exercise)
+                }
+            }
+        }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.white.opacity(0.08))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                )
+        )
+        .transition(.opacity.combined(with: .scale(scale: 0.95)))
+    }
+
     private func setDetailRow(for set: SetData, index: Int, in exercise: Exercise) -> some View {
         let isWeighted = set.weight != nil
-        let oneRepMax: Double? = isWeighted ? (set.weight! * (1 + Double(set.reps) / 30)) : nil
+        let oneRepMaxKG: Double? = isWeighted ? (set.weight! * (1 + Double(set.reps) / 30)) : nil
+        let unit = appSettings.preferredWeightUnit
         
         return HStack {
             Text("\(set.reps)")
@@ -341,7 +399,7 @@ struct WorkoutDetailView: View {
                 .foregroundColor(.white)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-            Text(set.weight.map { String(format: "%.1f", $0) } ?? "Bodyweight")
+            Text(set.weight.map { unit.formattedWeight(fromKilograms: $0) } ?? "Bodyweight")
                 .font(.subheadline)
                 .foregroundColor(.white)
                 .frame(maxWidth: .infinity, alignment: .center)
@@ -353,8 +411,8 @@ struct WorkoutDetailView: View {
                     .frame(maxWidth: .infinity, alignment: .center)
             }
 
-            if let oneRepMax = oneRepMax {
-                Text(String(format: "%.1f", oneRepMax))
+            if let oneRepMax = oneRepMaxKG {
+                Text(String(format: "%.1f", unit.convertFromKilograms(oneRepMax)))
                     .font(.subheadline)
                     .fontWeight(.semibold)
                     .foregroundColor(AppColors.secondary)

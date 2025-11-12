@@ -15,7 +15,7 @@ class TrackerViewModel: ObservableObject {
     @Published var favoritedExercise: String? = nil
     @Published var displayName: String = "User"
     @Published var profileImageUrl: String? = nil
-    @Published var preferredWeightUnit: String = "kg"
+    @Published var preferredWeightUnit: WeightUnit = .kilograms
     @Published var selectedTimeRange: String = "3M"
     @Published var trackedExercises: [Exercise] = []
     @Published var allTrackedExercises: [Exercise] = [] // Store all exercises for filtering
@@ -38,6 +38,7 @@ class TrackerViewModel: ObservableObject {
                     self.favoritedExercise = profileInfo.favoritedExercise
                     self.selectedExercise = profileInfo.favoritedExercise
                     self.preferredWeightUnit = profileInfo.preferredWeightUnit
+                    AppSettings.shared.updatePreferredUnit(self.preferredWeightUnit)
                     if let exercise = profileInfo.favoritedExercise, !exercise.isEmpty {
                         self.fetchExercises(for: userId, exerciseName: exercise)
                     }

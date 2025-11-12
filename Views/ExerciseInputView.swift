@@ -11,6 +11,7 @@ struct ExerciseInputView<T: ExerciseHandlingProtocol>: View {
     @Binding var exercise: Exercise
     var exerciseIndex: Int
     var addSet: () -> Void
+    @ObservedObject private var appSettings = AppSettings.shared
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -54,7 +55,7 @@ struct ExerciseInputView<T: ExerciseHandlingProtocol>: View {
                 .foregroundColor(AppColors.secondary)
 
             if exercise.sets.contains(where: { $0.weight != nil }) {
-                Text("Weight (\(AppSettings.shared.preferredUnit))")
+                Text("Weight (\(appSettings.preferredWeightUnit.symbol))")
                     .frame(width: 90)
                     .foregroundColor(AppColors.secondary)
             }
@@ -104,12 +105,13 @@ struct ExerciseInputView<T: ExerciseHandlingProtocol>: View {
                     if exercise.sets[index].weight != nil {
                         TextField("", text: Binding(
                             get: {
-                                let w = exercise.sets[index].weight ?? 0.0
-                                return AppSettings.shared.preferredUnit == "lbs" ? String(format: "%.1f", w * 2.20462) : String(format: "%.1f", w)
+                                let weightKG = exercise.sets[index].weight ?? 0.0
+                                let displayValue = appSettings.preferredWeightUnit.convertFromKilograms(weightKG)
+                                return String(format: "%.1f", displayValue)
                             },
                             set: { newValue in
                                 if let val = Double(newValue) {
-                                    exercise.sets[index].weight = AppSettings.shared.preferredUnit == "lbs" ? val / 2.20462 : val
+                                    exercise.sets[index].weight = appSettings.preferredWeightUnit.convertToKilograms(val)
                                 } else {
                                     exercise.sets[index].weight = nil
                                 }

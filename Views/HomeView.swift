@@ -11,6 +11,7 @@ struct HomeView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
     @StateObject private var viewModel = HomeViewModel() // ✅ Ensure StateObject is used only here
     @State private var showSideMenu = false
+    @State private var showSettingsView = false
     
     
 var body: some View {
@@ -78,7 +79,7 @@ var body: some View {
                 // TODO: Navigate to user's own profile
             },
             onSettings: {
-                // TODO: Navigate to settings
+                showSettingsView = true
             },
             onAbout: {
                 // TODO: Show about screen
@@ -87,6 +88,10 @@ var body: some View {
                 authViewModel.signOut()
             }
         )
+    }
+    .navigationDestination(isPresented: $showSettingsView) {
+        ProfileSettingsView()
+            .environmentObject(authViewModel)
     }
 }
     
@@ -138,7 +143,7 @@ var body: some View {
                                 .fontWeight(.bold)
                                 .foregroundColor(.white)
                             
-                            Text("Fitness Enthusiast")
+                            Text(viewModel.tagline.displayText)
                                 .font(.subheadline)
                                 .foregroundColor(.gray)
                         }

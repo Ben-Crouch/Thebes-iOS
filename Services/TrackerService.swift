@@ -30,7 +30,7 @@ class TrackerService {
             }
     }
     
-    func fetchUserProfileInfo(for userId: String, completion: @escaping (Result<(displayName: String, favoritedExercise: String?, preferredWeightUnit: String), Error>) -> Void) {
+    func fetchUserProfileInfo(for userId: String, completion: @escaping (Result<(displayName: String, favoritedExercise: String?, preferredWeightUnit: WeightUnit), Error>) -> Void) {
         db.collection("users")
             .document(userId)
             .getDocument { snapshot, error in
@@ -42,14 +42,15 @@ class TrackerService {
 
                 guard let data = snapshot?.data(),
                       let displayName = data["displayName"] as? String,
-                      let preferredWeightUnit = data["preferredWeightUnit"] as? String else {
+                      let preferredWeightUnitRaw = data["preferredWeightUnit"] as? String else {
                     print("⚠️ Missing required user profile fields")
                     completion(.failure(NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Missing required user profile fields"])))
                     return
                 }
 
                 let favoritedExercise = data["favoritedExercise"] as? String
-                print("✅ Fetched profile info: \(displayName), \(favoritedExercise ?? "None"), \(preferredWeightUnit)")
+                let preferredWeightUnit = WeightUnit(fromPreferredUnit: preferredWeightUnitRaw)
+                print("✅ Fetched profile info: \(displayName), \(favoritedExercise ?? "None"), \(preferredWeightUnit.symbol)")
                 completion(.success((displayName, favoritedExercise, preferredWeightUnit)))
             }
     }

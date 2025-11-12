@@ -12,4 +12,5 @@ struct MockUserProfile: Codable, Identifiable {
     var displayName: String
     var email: String
     var preferredWeightUnit: String
+    var tagline: String?
 }
