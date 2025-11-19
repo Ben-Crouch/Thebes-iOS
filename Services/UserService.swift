@@ -13,24 +13,65 @@ class UserService {
     private let usersCollection = Firestore.firestore().collection("users")
 
     /// Creates a new user profile in Firestore after signup
-    func createUserProfile(user: User) {
+    /// - Parameters:
+    ///   - user: The Firebase Auth user
+    ///   - displayName: Optional display name (e.g., from Apple Sign-In fullName). If nil, uses user.displayName or "Anonymous"
+    func createUserProfile(user: User, displayName: String? = nil) {
         let userDoc = usersCollection.document(user.uid)
         
-        let userData: [String: Any] = [
-            "uid": user.uid,
-            "displayName": user.displayName ?? "Anonymous",
-            "email": user.email ?? "",
-            "profilePic": user.photoURL?.absoluteString ?? "",
-            "createdAt": Timestamp(),
-            "preferredWeightUnit": "kg",
-            "tagline": UserTagline.fitnessEnthusiast.rawValue
-        ]
+        print("📝 createUserProfile called for user: \(user.uid)")
+        print("   Provided displayName: \(displayName ?? "nil")")
+        print("   User.displayName: \(user.displayName ?? "nil")")
         
-        userDoc.setData(userData, merge: true) { error in
+        // Check if user already exists to avoid overwriting existing data
+        userDoc.getDocument { document, error in
+            
             if let error = error {
-                print("Error saving user profile: \(error.localizedDescription)")
+                print("⚠️ Error checking existing document: \(error.localizedDescription)")
+            }
+            
+            let documentExists = document?.exists ?? false
+            let existingDisplayName = document?.data()?["displayName"] as? String
+            
+            print("   Document exists: \(documentExists)")
+            print("   Existing displayName: \(existingDisplayName ?? "nil")")
+            
+            // Determine the display name to use:
+            // 1. Use provided displayName (from Apple Sign-In) if available and not empty
+            // 2. Otherwise, use existing displayName if it exists and isn't "Anonymous"
+            // 3. Otherwise, use user.displayName
+            // 4. Finally, fall back to "Anonymous"
+            let finalDisplayName: String
+            if let providedName = displayName, !providedName.isEmpty {
+                finalDisplayName = providedName
+                print("   ✅ Using provided displayName: \(finalDisplayName)")
+            } else if let existing = existingDisplayName, existing != "Anonymous" {
+                finalDisplayName = existing
+                print("   ✅ Preserving existing displayName: \(finalDisplayName)")
             } else {
-                print("✅ User profile created successfully in Firestore")
+                finalDisplayName = user.displayName ?? "Anonymous"
+                print("   ⚠️ Using fallback displayName: \(finalDisplayName)")
+            }
+            
+            let userData: [String: Any] = [
+                "uid": user.uid,
+                "displayName": finalDisplayName,
+                "email": user.email ?? "",
+                "profilePic": user.photoURL?.absoluteString ?? "",
+                "createdAt": documentExists ? (document?.data()?["createdAt"] ?? Timestamp()) : Timestamp(),
+                "preferredWeightUnit": document?.data()?["preferredWeightUnit"] as? String ?? "kg",
+                "tagline": document?.data()?["tagline"] as? String ?? UserTagline.fitnessEnthusiast.rawValue
+            ]
+            
+            print("   Saving userData with displayName: \(finalDisplayName)")
+            
+            userDoc.setData(userData, merge: true) { error in
+                if let error = error {
+                    print("❌ Error saving user profile: \(error.localizedDescription)")
+                } else {
+                    print("✅ User profile created/updated successfully in Firestore")
+                    print("   Final display name: \(finalDisplayName)")
+                }
             }
         }
     }
@@ -160,5 +201,397 @@ class UserService {
             completion(exists)
         }
     }
+    
+    /// Deletes all user data from Firestore
+    func deleteUserData(userId: String, completion: @escaping (Bool) -> Void) {
+        let group = DispatchGroup()
+        
+        // First, fetch the user's profile to get their followers and following lists
+        var userFollowers: [String] = []
+        var userFollowing: [String] = []
+        
+        group.enter()
+        usersCollection.document(userId).getDocument { document, error in
+            if let document = document, document.exists, let data = document.data() {
+                userFollowers = data["followers"] as? [String] ?? []
+                userFollowing = data["following"] as? [String] ?? []
+                print("📋 Found \(userFollowers.count) followers and \(userFollowing.count) following to clean up")
+            }
+            group.leave()
+        }
+        
+        // Wait for profile fetch, then proceed with deletion
+        group.notify(queue: .main) {
+            self.performUserDataDeletion(userId: userId, followers: userFollowers, following: userFollowing, completion: completion)
+        }
+    }
+    
+    private func performUserDataDeletion(userId: String, followers: [String], following: [String], completion: @escaping (Bool) -> Void) {
+        let db = Firestore.firestore()
+        let group = DispatchGroup()
+        var allSuccess = true
+        
+        // Delete user profile
+        group.enter()
+        usersCollection.document(userId).delete { error in
+            if let error = error {
+                print("❌ Error deleting user profile: \(error.localizedDescription)")
+                allSuccess = false
+            } else {
+                print("✅ User profile deleted")
+            }
+            group.leave()
+        }
+        
+        // Get user's workout IDs before deleting workouts (needed for exercise deletion)
+        var workoutIds: [String] = []
+        group.enter()
+        db.collection("workouts").whereField("userId", isEqualTo: userId).getDocuments { snapshot, error in
+            if let error = error {
+                print("⚠️ Error fetching workouts for deletion: \(error.localizedDescription)")
+                group.leave()
+                return
+            }
+            
+            workoutIds = snapshot?.documents.map { $0.documentID } ?? []
+            print("📋 Found \(workoutIds.count) workouts to delete")
+            
+            let batch = db.batch()
+            snapshot?.documents.forEach { doc in
+                batch.deleteDocument(doc.reference)
+            }
+            
+            batch.commit { error in
+                if let error = error {
+                    print("❌ Error deleting workouts: \(error.localizedDescription)")
+                    allSuccess = false
+                } else {
+                    print("✅ Workouts deleted")
+                }
+                group.leave()
+            }
+        }
+        
+        // Get user's template IDs before deleting templates (needed for exercise deletion)
+        var templateIds: [String] = []
+        group.enter()
+        db.collection("templates").whereField("userId", isEqualTo: userId).getDocuments { snapshot, error in
+            if let error = error {
+                print("⚠️ Error fetching templates for deletion: \(error.localizedDescription)")
+                group.leave()
+                return
+            }
+            
+            templateIds = snapshot?.documents.map { $0.documentID } ?? []
+            print("📋 Found \(templateIds.count) templates to delete")
+            
+            let batch = db.batch()
+            snapshot?.documents.forEach { doc in
+                batch.deleteDocument(doc.reference)
+            }
+            
+            batch.commit { error in
+                if let error = error {
+                    print("❌ Error deleting templates: \(error.localizedDescription)")
+                    allSuccess = false
+                } else {
+                    print("✅ Templates deleted")
+                }
+                group.leave()
+            }
+        }
+        
+        // Delete exercises: those with userId matching, or workoutId/templateId matching user's workouts/templates
+        group.enter()
+        db.collection("exercises").whereField("userId", isEqualTo: userId).getDocuments { snapshot, error in
+            if let error = error {
+                print("⚠️ Error fetching exercises by userId: \(error.localizedDescription)")
+                group.leave()
+            } else if let snapshot = snapshot, !snapshot.documents.isEmpty {
+                let exerciseBatch = db.batch()
+                snapshot.documents.forEach { doc in
+                    exerciseBatch.deleteDocument(doc.reference)
+                }
+                
+                exerciseBatch.commit { error in
+                    if let error = error {
+                        print("❌ Error deleting exercises by userId: \(error.localizedDescription)")
+                        allSuccess = false
+                    } else {
+                        print("✅ Deleted \(snapshot.documents.count) exercises by userId")
+                    }
+                    group.leave()
+                }
+            } else {
+                print("✅ No exercises found by userId")
+                group.leave()
+            }
+        }
+        
+        // Delete exercises by workoutId (after workouts are deleted, but we have the IDs)
+        if !workoutIds.isEmpty {
+            group.enter()
+            // Firestore doesn't support "in" queries with more than 10 items, so we need to batch
+            let workoutIdBatches = workoutIds.chunked(into: 10)
+            var exercisesDeleted = 0
+            let workoutExerciseGroup = DispatchGroup()
+            
+            for batch in workoutIdBatches {
+                workoutExerciseGroup.enter()
+                db.collection("exercises").whereField("workoutId", in: batch).getDocuments { snapshot, error in
+                    if let error = error {
+                        print("⚠️ Error fetching exercises by workoutId: \(error.localizedDescription)")
+                    } else if let docs = snapshot?.documents, !docs.isEmpty {
+                        let exerciseBatch = db.batch()
+                        docs.forEach { doc in
+                            exerciseBatch.deleteDocument(doc.reference)
+                        }
+                        exercisesDeleted += docs.count
+                        exerciseBatch.commit { error in
+                            if let error = error {
+                                print("❌ Error deleting exercises by workoutId: \(error.localizedDescription)")
+                                allSuccess = false
+                            }
+                            workoutExerciseGroup.leave()
+                        }
+                    } else {
+                        workoutExerciseGroup.leave()
+                    }
+                }
+            }
+            
+            workoutExerciseGroup.notify(queue: .main) {
+                if exercisesDeleted > 0 {
+                    print("✅ Deleted \(exercisesDeleted) exercises by workoutId")
+                }
+                group.leave()
+            }
+        }
+        
+        // Delete exercises by templateId (after templates are deleted, but we have the IDs)
+        if !templateIds.isEmpty {
+            group.enter()
+            // Firestore doesn't support "in" queries with more than 10 items, so we need to batch
+            let templateIdBatches = templateIds.chunked(into: 10)
+            var exercisesDeleted = 0
+            let templateExerciseGroup = DispatchGroup()
+            
+            for batch in templateIdBatches {
+                templateExerciseGroup.enter()
+                db.collection("exercises").whereField("templateId", in: batch).getDocuments { snapshot, error in
+                    if let error = error {
+                        print("⚠️ Error fetching exercises by templateId: \(error.localizedDescription)")
+                    } else if let docs = snapshot?.documents, !docs.isEmpty {
+                        let exerciseBatch = db.batch()
+                        docs.forEach { doc in
+                            exerciseBatch.deleteDocument(doc.reference)
+                        }
+                        exercisesDeleted += docs.count
+                        exerciseBatch.commit { error in
+                            if let error = error {
+                                print("❌ Error deleting exercises by templateId: \(error.localizedDescription)")
+                                allSuccess = false
+                            }
+                            templateExerciseGroup.leave()
+                        }
+                    } else {
+                        templateExerciseGroup.leave()
+                    }
+                }
+            }
+            
+            templateExerciseGroup.notify(queue: .main) {
+                if exercisesDeleted > 0 {
+                    print("✅ Deleted \(exercisesDeleted) exercises by templateId")
+                }
+                group.leave()
+            }
+        }
+        
+        // Remove user from all followers' following lists
+        // (People who were following the deleted user need to remove them from their following list)
+        if !followers.isEmpty {
+            group.enter()
+            let followersBatches = followers.chunked(into: 10) // Firestore batch limit
+            var followersUpdated = 0
+            let followersGroup = DispatchGroup()
+            
+            for batch in followersBatches {
+                followersGroup.enter()
+                // Fetch all users in this batch
+                let batchRefs = batch.map { usersCollection.document($0) }
+                var batchUpdates: [DocumentReference: [String: Any]] = [:]
+                
+                let fetchGroup = DispatchGroup()
+                for ref in batchRefs {
+                    fetchGroup.enter()
+                    ref.getDocument { document, error in
+                        if let document = document, document.exists,
+                           let data = document.data(),
+                           var following = data["following"] as? [String] {
+                            following.removeAll { $0 == userId }
+                            batchUpdates[ref] = ["following": following]
+                        }
+                        fetchGroup.leave()
+                    }
+                }
+                
+                fetchGroup.notify(queue: .main) {
+                    if !batchUpdates.isEmpty {
+                        let updateBatch = db.batch()
+                        batchUpdates.forEach { ref, updates in
+                            updateBatch.updateData(updates, forDocument: ref)
+                        }
+                        updateBatch.commit { error in
+                            if let error = error {
+                                print("❌ Error updating followers' following lists: \(error.localizedDescription)")
+                                allSuccess = false
+                            } else {
+                                followersUpdated += batchUpdates.count
+                            }
+                            followersGroup.leave()
+                        }
+                    } else {
+                        followersGroup.leave()
+                    }
+                }
+            }
+            
+            followersGroup.notify(queue: .main) {
+                if followersUpdated > 0 {
+                    print("✅ Removed user from \(followersUpdated) followers' following lists")
+                }
+                group.leave()
+            }
+        }
+        
+        // Remove user from all following users' followers lists
+        // (People the deleted user was following need to remove them from their followers list)
+        if !following.isEmpty {
+            group.enter()
+            let followingBatches = following.chunked(into: 10) // Firestore batch limit
+            var followingUpdated = 0
+            let followingGroup = DispatchGroup()
+            
+            for batch in followingBatches {
+                followingGroup.enter()
+                // Fetch all users in this batch
+                let batchRefs = batch.map { usersCollection.document($0) }
+                var batchUpdates: [DocumentReference: [String: Any]] = [:]
+                
+                let fetchGroup = DispatchGroup()
+                for ref in batchRefs {
+                    fetchGroup.enter()
+                    ref.getDocument { document, error in
+                        if let document = document, document.exists,
+                           let data = document.data(),
+                           var followers = data["followers"] as? [String] {
+                            followers.removeAll { $0 == userId }
+                            batchUpdates[ref] = ["followers": followers]
+                        }
+                        fetchGroup.leave()
+                    }
+                }
+                
+                fetchGroup.notify(queue: .main) {
+                    if !batchUpdates.isEmpty {
+                        let updateBatch = db.batch()
+                        batchUpdates.forEach { ref, updates in
+                            updateBatch.updateData(updates, forDocument: ref)
+                        }
+                        updateBatch.commit { error in
+                            if let error = error {
+                                print("❌ Error updating following users' followers lists: \(error.localizedDescription)")
+                                allSuccess = false
+                            } else {
+                                followingUpdated += batchUpdates.count
+                            }
+                            followingGroup.leave()
+                        }
+                    } else {
+                        followingGroup.leave()
+                    }
+                }
+            }
+            
+            followingGroup.notify(queue: .main) {
+                if followingUpdated > 0 {
+                    print("✅ Removed user from \(followingUpdated) following users' followers lists")
+                }
+                group.leave()
+            }
+        }
+        
+        // Also query all users who have the deleted user in their followers list
+        // This handles edge cases where data might be inconsistent
+        group.enter()
+        print("🔍 Querying all users with deleted user in their followers list...")
+        usersCollection.whereField("followers", arrayContains: userId).getDocuments { snapshot, error in
+            if let error = error {
+                print("⚠️ Error querying users with deleted user in followers: \(error.localizedDescription)")
+                group.leave()
+                return
+            }
+            
+            guard let documents = snapshot?.documents, !documents.isEmpty else {
+                print("✅ No additional users found with deleted user in followers list")
+                group.leave()
+                return
+            }
+            
+            print("📋 Found \(documents.count) additional users with deleted user in followers list")
+            
+            // Process in batches
+            let documentBatches = documents.chunked(into: 10)
+            var additionalUpdated = 0
+            let additionalGroup = DispatchGroup()
+            
+            for batch in documentBatches {
+                additionalGroup.enter()
+                let updateBatch = db.batch()
+                
+                for doc in batch {
+                    let data = doc.data()
+                    if var followers = data["followers"] as? [String] {
+                        let beforeCount = followers.count
+                        followers.removeAll { $0 == userId }
+                        if followers.count < beforeCount {
+                            updateBatch.updateData(["followers": followers], forDocument: doc.reference)
+                        }
+                    }
+                }
+                
+                updateBatch.commit { error in
+                    if let error = error {
+                        print("❌ Error updating additional users' followers lists: \(error.localizedDescription)")
+                        allSuccess = false
+                    } else {
+                        additionalUpdated += batch.count
+                    }
+                    additionalGroup.leave()
+                }
+            }
+            
+            additionalGroup.notify(queue: .main) {
+                if additionalUpdated > 0 {
+                    print("✅ Removed deleted user from \(additionalUpdated) additional users' followers lists")
+                }
+                group.leave()
+            }
+        }
+        
+        group.notify(queue: .main) {
+            print("✅ User data deletion completed")
+            completion(allSuccess)
+        }
+    }
+}
 
+// Helper extension to chunk arrays for Firestore queries (max 10 items per "in" query)
+extension Array {
+    func chunked(into size: Int) -> [[Element]] {
+        return stride(from: 0, to: count, by: size).map {
+            Array(self[$0..<Swift.min($0 + size, count)])
+        }
+    }
 }

@@ -1,4 +1,5 @@
 //
+import SwiftUI
 //  TemplateDetailView.swift
 //  Thebes
 //
@@ -9,6 +10,7 @@ import SwiftUI
 
 struct TemplateDetailView: View {
     @StateObject private var viewModel: TemplateDetailViewModel // ✅ Uses ViewModel for Templates
+    @Environment(\.colorScheme) var colorScheme
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject var authViewModel: AuthViewModel
     @ObservedObject private var appSettings = AppSettings.shared
@@ -25,13 +27,9 @@ struct TemplateDetailView: View {
 
     var body: some View {
         ZStack {
-            // Gradient background to match WorkoutDetailView
+            // Gradient background - adjusted for dark mode visibility
             LinearGradient(
-                gradient: Gradient(colors: [
-                    Color.black,
-                    Color.black.opacity(0.8),
-                    Color.black
-                ]),
+                gradient: Gradient(colors: AppColors.gradientColors(for: colorScheme)),
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )

@@ -51,7 +51,7 @@ struct SideMenuView: View {
         Group {
             if isPresented {
                 // Overlay background
-                Color.black.opacity(0.6)
+                Color(uiColor: .black).opacity(0.6)
                     .edgesIgnoringSafeArea(.all)
                     .onTapGesture {
                         withAnimation(.easeOut(duration: 0.3)) {
@@ -198,7 +198,7 @@ struct SideMenuView: View {
                     LinearGradient(
                         gradient: Gradient(colors: [
                             Color.black,
-                            Color.black.opacity(0.95),
+                            Color(uiColor: .black).opacity(0.95),
                             Color.black
                         ]),
                         startPoint: .topLeading,

@@ -1,4 +1,5 @@
 //
+import SwiftUI
 //  SocialSearchView.swift
 //  Thebes
 //
@@ -13,6 +14,7 @@ struct SelectedUser: Identifiable {
 
 struct SocialSearchView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
+    @Environment(\.colorScheme) var colorScheme
     @StateObject private var viewModel = SocialSearchViewModel()
     let searchQuery: String
     let onSocialStatsChanged: (() -> Void)?
@@ -22,13 +24,9 @@ struct SocialSearchView: View {
     
     var body: some View {
         ZStack {
-            // Gradient background
+            // Gradient background - adjusted for dark mode visibility
             LinearGradient(
-                gradient: Gradient(colors: [
-                    Color.black,
-                    Color.black.opacity(0.8),
-                    Color.black
-                ]),
+                gradient: Gradient(colors: AppColors.gradientColors(for: colorScheme)),
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
@@ -235,6 +233,7 @@ struct SocialSearchView: View {
 
 struct UserSearchCard: View {
     let user: UserProfile
+    @Environment(\.colorScheme) var colorScheme
     let currentUserId: String
     let onFollowToggle: (String) -> Void
     let onViewProfile: (String) -> Void

@@ -1,4 +1,5 @@
 //
+import SwiftUI
 //  WorkoutsListView.swift
 //  Thebes
 //
@@ -9,6 +10,7 @@ import SwiftUI
 
 struct WorkoutsListView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
+    @Environment(\.colorScheme) var colorScheme
     @StateObject private var viewModel = WorkoutsListViewModel()
     @State private var showSideMenu = false
     @State private var showDetail = false
@@ -16,13 +18,9 @@ struct WorkoutsListView: View {
     
     var body: some View {
         ZStack(alignment: .top) {
-            // Match TemplatesListView gradient
+            // Gradient background - adjusted for dark mode visibility
             LinearGradient(
-                gradient: Gradient(colors: [
-                    Color.black,
-                    Color.black.opacity(0.8),
-                    Color.black
-                ]),
+                gradient: Gradient(colors: AppColors.gradientColors(for: colorScheme)),
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
@@ -78,7 +76,7 @@ struct WorkoutsListView: View {
             
             // Side Menu Overlay
             if showSideMenu {
-                Color.black.opacity(0.4)
+                Color(uiColor: .black).opacity(0.4)
                     .edgesIgnoringSafeArea(.all)
                     .onTapGesture {
                         withAnimation {
@@ -127,6 +125,7 @@ struct WorkoutsListView: View {
 
 struct WorkoutsListHeaderView: View {
     @ObservedObject var viewModel: WorkoutsListViewModel
+    @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
         VStack(spacing: 16) {
@@ -211,6 +210,7 @@ struct WorkoutsListHeaderView: View {
 
 struct WorkoutListItemCard: View {
     let workout: Workout
+    @Environment(\.colorScheme) var colorScheme
     
     var body: some View {
         HStack(spacing: 16) {
@@ -277,6 +277,7 @@ struct WorkoutListItemCard: View {
 
 struct LoadMoreButton: View {
     let action: () -> Void
+    @Environment(\.colorScheme) var colorScheme
     
     var body: some View {
         Button(action: action) {

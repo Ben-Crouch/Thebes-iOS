@@ -26,17 +26,25 @@ struct ThebesApp: App {
     var body: some Scene {
         WindowGroup {
             
-            NavigationView {
-                if authViewModel.user != nil && authViewModel.isEmailVerified {
-                    MainTabView() // ✅ Show MainTabView only if the email is verified
-                } else {
-                    LoginView() // ✅ Redirect unverified or logged-out users to LoginView
+            ZStack {
+                // Status bar style controller
+                StatusBarStyleView(style: .lightContent)
+                    .frame(width: 0, height: 0)
+                    .allowsHitTesting(false)
+                
+                NavigationView {
+                    if authViewModel.user != nil && authViewModel.isEmailVerified {
+                        MainTabView() // ✅ Show MainTabView only if the email is verified
+                    } else {
+                        LoginView() // ✅ Redirect unverified or logged-out users to LoginView
+                    }
                 }
+                .environmentObject(authViewModel) // ✅ Pass the authViewModel to all views
+                .toolbarBackground(.clear, for: .navigationBar)
+                .toolbarColorScheme(.dark, for: .navigationBar)
+                .background(Color.clear) // Ensure NavigationView background is clear
+                .preferredColorScheme(.light) // Force light mode to ensure gradients display correctly
             }
-            .environmentObject(authViewModel) // ✅ Pass the authViewModel to all views
-            .toolbarBackground(.clear, for: .navigationBar)
-            .toolbarColorScheme(.dark, for: .navigationBar)
-            .background(Color.clear) // Ensure NavigationView background is clear
         }
     }
 }

@@ -1,7 +1,9 @@
 import SwiftUI
+import AuthenticationServices
 
 struct ProfileSettingsView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
+    @Environment(\.colorScheme) var colorScheme
     @StateObject private var settingsViewModel = ProfileSettingsViewModel()
     @State private var weightUnit: WeightUnit = .kilograms
     @State private var isPrivateMode = false
@@ -13,15 +15,19 @@ struct ProfileSettingsView: View {
     @State private var resetAlertMessage: String = ""
     @State private var showResetResult = false
     @State private var selectedTagline: UserTagline = .fitnessEnthusiast
+    @State private var showDeleteAccountConfirmation = false
+    @State private var showDeletePasswordPrompt = false
+    @State private var deletePassword = ""
+    @State private var showAppleReAuth = false
+    @State private var isDeleting = false
+    @State private var showPrivacyPolicy = false
+    @State private var showTermsOfService = false
     
     var body: some View {
         ZStack {
+            // Gradient background - adjusted for dark mode visibility
             LinearGradient(
-                gradient: Gradient(colors: [
-                    Color.black,
-                    Color.black.opacity(0.85),
-                    Color.black
-                ]),
+                gradient: Gradient(colors: AppColors.gradientColors(for: colorScheme)),
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
@@ -41,6 +47,41 @@ struct ProfileSettingsView: View {
                     
                     settingsSection(title: "Account") {
                         VStack(alignment: .leading, spacing: 16) {
+                            VStack(alignment: .leading, spacing: 10) {
+                                Text("Display Name")
+                                    .font(.subheadline)
+                                    .fontWeight(.medium)
+                                    .foregroundColor(.white)
+                                TextField("Enter your name", text: Binding(
+                                    get: { settingsViewModel.displayName },
+                                    set: { newValue in
+                                        settingsViewModel.displayName = newValue
+                                    }
+                                ))
+                                .textFieldStyle(PlainTextFieldStyle())
+                                .padding(12)
+                                .background(Color.white.opacity(0.1))
+                                .cornerRadius(8)
+                                .foregroundColor(.white)
+                                .onSubmit {
+                                    if !settingsViewModel.displayName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                                        settingsViewModel.saveDisplayName(for: authViewModel.user?.uid, newDisplayName: settingsViewModel.displayName)
+                                    }
+                                }
+                                .onChange(of: settingsViewModel.displayName) { newValue in
+                                    // Auto-save after user stops typing (debounce)
+                                    let trimmed = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
+                                    if !trimmed.isEmpty {
+                                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                                            // Only save if the value hasn't changed in the meantime
+                                            if settingsViewModel.displayName == newValue {
+                                                settingsViewModel.saveDisplayName(for: authViewModel.user?.uid, newDisplayName: trimmed)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            divider
                             settingsRow(title: "Email", description: settingsViewModel.email) {
                                 Button(action: {}) {
                                     Text("Manage")
@@ -137,6 +178,32 @@ struct ProfileSettingsView: View {
                         }
                     }
                     
+                    settingsSection(title: "Legal") {
+                        VStack(alignment: .leading, spacing: 16) {
+                            Button(action: {
+                                showPrivacyPolicy = true
+                            }) {
+                                settingsRow(title: "Privacy Policy", description: "How we collect and use your data") {
+                                    Image(systemName: "chevron.right")
+                                        .foregroundColor(.white.opacity(0.4))
+                                }
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                            
+                            divider
+                            
+                            Button(action: {
+                                showTermsOfService = true
+                            }) {
+                                settingsRow(title: "Terms of Service", description: "Terms and conditions for using Thebes") {
+                                    Image(systemName: "chevron.right")
+                                        .foregroundColor(.white.opacity(0.4))
+                                }
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                        }
+                    }
+                    
                     settingsSection(title: "Notifications") {
                         VStack(alignment: .leading, spacing: 16) {
                             settingsRow(
@@ -183,6 +250,19 @@ struct ProfileSettingsView: View {
                                             .fontWeight(.semibold)
                                             .foregroundColor(AppColors.secondary)
                                     }
+                                }
+                            }
+                            
+                            divider
+                            
+                            settingsRow(title: "Delete Account", description: "Permanently delete your account and all data") {
+                                Button(action: {
+                                    showDeleteAccountConfirmation = true
+                                }) {
+                                    Text("Delete")
+                                        .font(.subheadline)
+                                        .fontWeight(.semibold)
+                                        .foregroundColor(.red)
                                 }
                             }
                         }
@@ -240,6 +320,220 @@ struct ProfileSettingsView: View {
             }
         } message: {
             Text(resetAlertMessage)
+        }
+        .confirmationDialog(
+            "Delete Account",
+            isPresented: $showDeleteAccountConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Cancel", role: .cancel) { }
+            Button("Delete My Account", role: .destructive) {
+                if authViewModel.isAppleUser() {
+                    showAppleReAuth = true
+                } else {
+                    showDeletePasswordPrompt = true
+                }
+            }
+        } message: {
+            Text("This action cannot be undone. All your data, including workouts, templates, and profile information, will be permanently deleted.")
+        }
+        .sheet(isPresented: $showDeletePasswordPrompt) {
+            deleteAccountPasswordSheet
+        }
+        .sheet(isPresented: $showAppleReAuth) {
+            appleReAuthSheet
+        }
+        .sheet(isPresented: $showPrivacyPolicy) {
+            if let url = URL(string: "https://thebes-dbc17.web.app/privacy-policy.html") {
+                SafariView(url: url)
+            }
+        }
+        .sheet(isPresented: $showTermsOfService) {
+            if let url = URL(string: "https://thebes-dbc17.web.app/terms-of-service.html") {
+                SafariView(url: url)
+            }
+        }
+    }
+    
+    private var deleteAccountPasswordSheet: some View {
+        NavigationView {
+            VStack(spacing: 24) {
+                Text("Confirm Deletion")
+                    .font(.title2)
+                    .fontWeight(.bold)
+                    .foregroundColor(.white)
+                    .padding(.top, 20)
+                
+                Text("To delete your account, please enter your password to confirm.")
+                    .font(.subheadline)
+                    .foregroundColor(.white.opacity(0.7))
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+                
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Password")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundColor(.white.opacity(0.9))
+                    
+                    SecureField("Enter your password", text: $deletePassword)
+                        .modifier(PlaceholderModifier(
+                            showPlaceholder: deletePassword.isEmpty,
+                            placeholder: "Enter your password",
+                            color: .white.opacity(0.5)
+                        ))
+                        .padding(14)
+                        .background(Color.white.opacity(0.08))
+                        .cornerRadius(12)
+                        .foregroundColor(.white)
+                }
+                .padding(.horizontal, 20)
+                
+                Button(action: {
+                    isDeleting = true
+                    authViewModel.deleteAccount(password: deletePassword) { result in
+                        isDeleting = false
+                        switch result {
+                        case .success:
+                            showDeletePasswordPrompt = false
+                            // User will be signed out automatically
+                        case .failure(let error):
+                            resetAlertTitle = "Deletion Failed"
+                            resetAlertMessage = authViewModel.getFriendlyErrorMessage(error)
+                            showResetResult = true
+                        }
+                    }
+                }) {
+                    if isDeleting {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .background(Color.red.opacity(0.6))
+                            .cornerRadius(12)
+                    } else {
+                        Text("Delete Account")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .background(Color.red)
+                            .cornerRadius(12)
+                    }
+                }
+                .padding(.horizontal, 20)
+                .disabled(isDeleting || deletePassword.isEmpty)
+                
+                Spacer()
+            }
+            .background(
+                LinearGradient(
+                    gradient: Gradient(colors: [
+                        Color.black,
+                        Color(uiColor: .black).opacity(0.85),
+                        Color.black
+                    ]),
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .edgesIgnoringSafeArea(.all)
+            )
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Cancel") {
+                        showDeletePasswordPrompt = false
+                        deletePassword = ""
+                    }
+                    .foregroundColor(.white)
+                }
+            }
+        }
+    }
+    
+    private var appleReAuthSheet: some View {
+        NavigationView {
+            VStack(spacing: 24) {
+                Text("Confirm Deletion")
+                    .font(.title2)
+                    .fontWeight(.bold)
+                    .foregroundColor(.white)
+                    .padding(.top, 40)
+                
+                Text("To delete your account, please sign in with Apple again to confirm.")
+                    .font(.subheadline)
+                    .foregroundColor(.white.opacity(0.7))
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 24)
+                
+                SignInWithAppleButton(
+                    onRequest: { request in
+                        let nonce = authViewModel.startSignInWithAppleFlow()
+                        request.requestedScopes = [.fullName, .email]
+                        // Apple Sign-In expects hex-encoded SHA256, not base64
+                        request.nonce = nonce.sha256Hex()
+                    },
+                    onCompletion: { result in
+                        switch result {
+                        case .success(let authorization):
+                            isDeleting = true
+                            authViewModel.deleteAppleAccount(authorization: authorization) { result in
+                                isDeleting = false
+                                switch result {
+                                case .success:
+                                    showAppleReAuth = false
+                                    // User will be signed out automatically
+                                case .failure(let error):
+                                    resetAlertTitle = "Deletion Failed"
+                                    resetAlertMessage = authViewModel.getFriendlyErrorMessage(error)
+                                    showResetResult = true
+                                    showAppleReAuth = false
+                                }
+                            }
+                        case .failure(let error):
+                            resetAlertTitle = "Authentication Failed"
+                            resetAlertMessage = authViewModel.getFriendlyErrorMessage(error)
+                            showResetResult = true
+                        }
+                    }
+                )
+                .signInWithAppleButtonStyle(.white)
+                .frame(height: 50)
+                .cornerRadius(12)
+                .padding(.horizontal, 20)
+                .disabled(isDeleting)
+                .opacity(isDeleting ? 0.6 : 1.0)
+                
+                if isDeleting {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                        .padding()
+                }
+                
+                Spacer()
+            }
+            .background(
+                LinearGradient(
+                    gradient: Gradient(colors: [
+                        Color.black,
+                        Color(uiColor: .black).opacity(0.85),
+                        Color.black
+                    ]),
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .edgesIgnoringSafeArea(.all)
+            )
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Cancel") {
+                        showAppleReAuth = false
+                    }
+                    .foregroundColor(.white)
+                    .disabled(isDeleting)
+                }
+            }
         }
     }
     

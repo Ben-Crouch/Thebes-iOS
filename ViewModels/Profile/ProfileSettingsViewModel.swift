@@ -115,6 +115,30 @@ final class ProfileSettingsViewModel: ObservableObject {
             }
         }
     }
+    
+    func saveDisplayName(for userId: String?, newDisplayName: String) {
+        let trimmedName = newDisplayName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty else {
+            errorMessage = "Display name cannot be empty"
+            return
+        }
+        
+        let previousName = displayName
+        displayName = trimmedName
+        errorMessage = nil
+        guard let userId = userId, !userId.isEmpty else { return }
+        userService.updateUserProfile(userId: userId, updates: ["displayName": trimmedName]) { [weak self] success in
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                if !success {
+                    self.displayName = previousName
+                    self.errorMessage = "Failed to update display name. Please try again."
+                } else {
+                    print("✅ Display name updated to: \(trimmedName)")
+                }
+            }
+        }
+    }
 
     private func updateConnectedProviders() {
         guard let providerData = Auth.auth().currentUser?.providerData else {

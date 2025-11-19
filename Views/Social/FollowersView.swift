@@ -1,4 +1,5 @@
 //
+import SwiftUI
 //  FollowersView.swift
 //  Thebes
 //
@@ -9,6 +10,7 @@ import SwiftUI
 
 struct FollowersView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
+    @Environment(\.colorScheme) var colorScheme
     @StateObject private var viewModel = FollowersViewModel()
     let onSocialStatsChanged: (() -> Void)?
     @Environment(\.dismiss) private var dismiss
@@ -18,13 +20,9 @@ struct FollowersView: View {
     
     var body: some View {
         ZStack {
-            // Gradient background
+            // Gradient background - adjusted for dark mode visibility
             LinearGradient(
-                gradient: Gradient(colors: [
-                    Color.black,
-                    Color.black.opacity(0.8),
-                    Color.black
-                ]),
+                gradient: Gradient(colors: AppColors.gradientColors(for: colorScheme)),
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
@@ -177,6 +175,7 @@ struct FollowersView: View {
 
 struct FollowerUserCard: View {
     let user: UserProfile
+    @Environment(\.colorScheme) var colorScheme
     let currentUserId: String
     let isAlreadyFollowing: Bool
     let onFollowBack: (String) -> Void

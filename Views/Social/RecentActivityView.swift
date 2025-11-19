@@ -1,4 +1,5 @@
 //
+import SwiftUI
 //  RecentActivityView.swift
 //  Thebes
 //
@@ -9,19 +10,16 @@ import SwiftUI
 
 struct RecentActivityView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
+    @Environment(\.colorScheme) var colorScheme
     @StateObject private var viewModel = RecentActivityViewModel()
     @State private var isLoading = true
     @Environment(\.dismiss) private var dismiss
     
     var body: some View {
         ZStack {
-            // Gradient background
+            // Gradient background - adjusted for dark mode visibility
             LinearGradient(
-                gradient: Gradient(colors: [
-                    Color.black,
-                    Color.black.opacity(0.8),
-                    Color.black
-                ]),
+                gradient: Gradient(colors: AppColors.gradientColors(for: colorScheme)),
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
@@ -119,6 +117,7 @@ struct RecentActivityView: View {
 
 struct RecentWorkoutCard: View {
     let workout: RecentWorkoutActivity
+    @Environment(\.colorScheme) var colorScheme
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {

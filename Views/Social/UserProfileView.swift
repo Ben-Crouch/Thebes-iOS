@@ -1,4 +1,5 @@
 //
+import SwiftUI
 //  UserProfileView.swift
 //  Thebes
 //
@@ -9,6 +10,7 @@ import SwiftUI
 
 struct UserProfileView: View {
     let userId: String
+    @Environment(\.colorScheme) var colorScheme
     let onSocialStatsChanged: (() -> Void)?
     
     @EnvironmentObject var authViewModel: AuthViewModel
@@ -30,13 +32,9 @@ struct UserProfileView: View {
     
     var body: some View {
         ZStack {
-            // Gradient background
+            // Gradient background - adjusted for dark mode visibility
             LinearGradient(
-                gradient: Gradient(colors: [
-                    Color.black,
-                    Color.black.opacity(0.8),
-                    Color.black
-                ]),
+                gradient: Gradient(colors: AppColors.gradientColors(for: colorScheme)),
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
@@ -402,6 +400,7 @@ struct UserProfileView: View {
 
 struct UserWorkoutCard: View {
     let workout: Workout
+    @Environment(\.colorScheme) var colorScheme
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {

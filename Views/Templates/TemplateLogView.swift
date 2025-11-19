@@ -1,4 +1,5 @@
 //
+import SwiftUI
 //  TemplateLogView.swift
 //  Thebes
 //
@@ -9,6 +10,7 @@ import SwiftUI
 
 struct TemplateLogView: View {
     @Environment(\.presentationMode) var presentationMode
+    @Environment(\.colorScheme) var colorScheme
     @Environment(\.dismiss) private var dismiss
     @StateObject private var viewModel: TemplateLogViewModel
 
@@ -18,13 +20,9 @@ struct TemplateLogView: View {
 
     var body: some View {
         ZStack {
-            // Modern gradient background
+            // Gradient background - adjusted for dark mode visibility
             LinearGradient(
-                gradient: Gradient(colors: [
-                    Color.black,
-                    Color.black.opacity(0.8),
-                    Color.black
-                ]),
+                gradient: Gradient(colors: AppColors.gradientColors(for: colorScheme)),
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )

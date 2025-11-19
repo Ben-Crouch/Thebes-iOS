@@ -1,4 +1,5 @@
 //
+import SwiftUI
 //  WorkoutLogView.swift
 //  Thebes
 //
@@ -9,6 +10,7 @@ import SwiftUI
 
 struct WorkoutLogView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
+    @Environment(\.colorScheme) var colorScheme
     @StateObject private var viewModel: WorkoutLogViewModel
     @State private var selectedTab = 0
     @State private var isTemplateSheetPresented = false
@@ -20,13 +22,9 @@ struct WorkoutLogView: View {
     
     var body: some View {
         ZStack {
-            // Modern gradient background
+            // Gradient background - adjusted for dark mode visibility
             LinearGradient(
-                gradient: Gradient(colors: [
-                    Color.black,
-                    Color.black.opacity(0.8),
-                    Color.black
-                ]),
+                gradient: Gradient(colors: AppColors.gradientColors(for: colorScheme)),
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )

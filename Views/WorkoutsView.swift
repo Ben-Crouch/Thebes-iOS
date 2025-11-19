@@ -9,6 +9,7 @@ import SwiftUI
 
 struct WorkoutsView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
+    @Environment(\.colorScheme) var colorScheme
     @StateObject private var viewModel = WorkoutsViewModel()
     @State private var showSideMenu = false
     @State private var showSettingsView = false
@@ -16,11 +17,7 @@ struct WorkoutsView: View {
     var body: some View {
         ZStack(alignment: .top) {
             LinearGradient(
-                gradient: Gradient(colors: [
-                    Color.black,
-                    Color.black.opacity(0.8),
-                    Color.black
-                ]),
+                gradient: Gradient(colors: AppColors.gradientColors(for: colorScheme)),
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )

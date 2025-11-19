@@ -118,6 +118,7 @@ Temporary Items
 
 # Firebase
 GoogleService-Info.plist
+.firebase/
 
 # Environment variables
 .env

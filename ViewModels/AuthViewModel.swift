@@ -187,6 +187,143 @@ class AuthViewModel: ObservableObject {
             print("Error signing out: \(error.localizedDescription)")
         }
     }
+    
+    // MARK: - Account Deletion
+    
+    /// Deletes the current user's account (for email/password users)
+    func deleteAccount(password: String, completion: @escaping (Result<Void, Error>) -> Void) {
+        guard let user = Auth.auth().currentUser,
+              let email = user.email else {
+            completion(.failure(NSError(domain: "AuthError", code: -1, userInfo: [NSLocalizedDescriptionKey: "No user signed in"])))
+            return
+        }
+        
+        // Re-authenticate before deletion
+        let credential = EmailAuthProvider.credential(withEmail: email, password: password)
+        user.reauthenticate(with: credential) { [weak self] result, error in
+            if let error = error {
+                completion(.failure(error))
+                return
+            }
+            
+            // Delete user data from Firestore first
+            UserService.shared.deleteUserData(userId: user.uid) { success in
+                if !success {
+                    print("Warning: Failed to delete some user data from Firestore")
+                }
+                
+                // Delete the Firebase Auth account
+                user.delete { error in
+                    if let error = error {
+                        completion(.failure(error))
+                    } else {
+                        DispatchQueue.main.async {
+                            self?.user = nil
+                        }
+                        completion(.success(()))
+                    }
+                }
+            }
+        }
+    }
+    
+    /// Deletes account for Apple Sign In users (requires re-authentication with Apple)
+    func deleteAppleAccount(authorization: ASAuthorization, completion: @escaping (Result<Void, Error>) -> Void) {
+        guard let user = Auth.auth().currentUser else {
+            print("❌ No user signed in for account deletion")
+            completion(.failure(NSError(domain: "AuthError", code: -1, userInfo: [NSLocalizedDescriptionKey: "No user signed in"])))
+            return
+        }
+        
+        print("🗑️ Starting Apple account deletion for user: \(user.uid)")
+        
+        guard let appleIDCredential = authorization.credential as? ASAuthorizationAppleIDCredential else {
+            print("❌ Unable to get Apple ID credential")
+            completion(.failure(NSError(domain: "AuthError", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid Apple credential"])))
+            return
+        }
+        
+        guard let appleIDToken = appleIDCredential.identityToken,
+              let idTokenString = String(data: appleIDToken, encoding: .utf8) else {
+            print("❌ Unable to get identity token from Apple credential")
+            completion(.failure(NSError(domain: "AuthError", code: -1, userInfo: [NSLocalizedDescriptionKey: "Unable to fetch identity token"])))
+            return
+        }
+        
+        // Get the nonce if available (for re-authentication)
+        // If no nonce is available, we'll generate one (though it won't match what was sent to Apple)
+        // For re-authentication, Firebase might accept it, but if not, we'll need to ensure nonce is set
+        let nonce = currentNonce ?? randomNonceString()
+        if currentNonce == nil {
+            print("⚠️ No nonce found in currentNonce, generated new one for re-authentication")
+        }
+        
+        // Create Firebase credential from Apple authorization
+        let credential = OAuthProvider.appleCredential(
+            withIDToken: idTokenString,
+            rawNonce: nonce,
+            fullName: appleIDCredential.fullName
+        )
+        
+        print("✅ Created Firebase credential, re-authenticating user...")
+        
+        // Re-authenticate the user with Firebase (required before deletion)
+        Task { [weak self] in
+            do {
+                // Re-authenticate to satisfy Firebase's "recent authentication" requirement
+                _ = try await user.reauthenticate(with: credential)
+                print("✅ User re-authenticated successfully")
+                
+                // Try to revoke Apple token (optional, but good practice)
+                if let appleAuthCode = appleIDCredential.authorizationCode,
+                   let authCodeString = String(data: appleAuthCode, encoding: .utf8) {
+                    do {
+                        try await Auth.auth().revokeToken(withAuthorizationCode: authCodeString)
+                        print("✅ Apple token revoked successfully")
+                    } catch {
+                        print("⚠️ Warning: Failed to revoke Apple token: \(error.localizedDescription)")
+                        print("   Continuing with account deletion anyway...")
+                    }
+                }
+                
+                // Delete user data from Firestore
+                print("🗑️ Deleting user data from Firestore...")
+                UserService.shared.deleteUserData(userId: user.uid) { success in
+                    if !success {
+                        print("⚠️ Warning: Failed to delete some user data from Firestore")
+                    } else {
+                        print("✅ User data deleted from Firestore")
+                    }
+                    
+                    // Delete the Firebase Auth account (now that we're re-authenticated)
+                    print("🗑️ Deleting Firebase Auth account...")
+                    Task { @MainActor [weak self] in
+                        do {
+                            try await user.delete()
+                            print("✅ Firebase Auth account deleted successfully")
+                            self?.user = nil
+                            completion(.success(()))
+                        } catch {
+                            print("❌ Error deleting Firebase Auth account: \(error.localizedDescription)")
+                            completion(.failure(error))
+                        }
+                    }
+                }
+            } catch {
+                print("❌ Error re-authenticating user: \(error.localizedDescription)")
+                completion(.failure(error))
+            }
+        }
+    }
+    
+    /// Checks if the current user signed in with Apple
+    func isAppleUser() -> Bool {
+        guard let user = Auth.auth().currentUser,
+              let providerData = user.providerData.first else {
+            return false
+        }
+        return providerData.providerID == "apple.com"
+    }
 
     func signInWithGoogle(presenting: UIViewController, completion: @escaping (Result<User, Error>) -> Void) {
         guard let clientID = FirebaseApp.app()?.options.clientID else {
@@ -229,47 +366,95 @@ class AuthViewModel: ObservableObject {
     // Sign in with Apple
     func signInWithApple(authorization: ASAuthorization, completion: @escaping (Result<User, Error>) -> Void) {
         guard let appleIDCredential = authorization.credential as? ASAuthorizationAppleIDCredential else {
+            print("❌ Failed to get Apple ID credential")
             completion(.failure(NSError(domain: "AppleSignIn", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid Apple ID credential"])))
             return
         }
         
         guard let nonce = currentNonce else {
+            print("❌ No nonce found - was startSignInWithAppleFlow() called?")
             completion(.failure(NSError(domain: "AppleSignIn", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid state: A login callback was received, but no login request was sent."])))
             return
         }
         
+        print("✅ Using stored raw nonce: \(nonce)")
+        // Apple returns hex-encoded SHA256 in the token, so we compare with hex
+        let expectedHash = nonce.sha256Hex()
+        print("🔑 Expected hash (hex, what we sent to Apple): \(expectedHash)")
+        
         guard let appleIDToken = appleIDCredential.identityToken,
               let idTokenString = String(data: appleIDToken, encoding: .utf8) else {
+            print("❌ Failed to get identity token")
             completion(.failure(NSError(domain: "AppleSignIn", code: -1, userInfo: [NSLocalizedDescriptionKey: "Unable to fetch identity token"])))
             return
         }
         
-        // Clear the nonce after use
-        currentNonce = nil
+        print("✅ Got identity token from Apple")
         
-        // Firebase expects the raw nonce (not hashed)
-        // Note: Using deprecated method - works perfectly, just shows a warning
-        // The new API requires AuthProviderID which has accessibility issues in current SDK
-        let credential = OAuthProvider.credential(
-            withProviderID: "apple.com",
-            idToken: idTokenString,
-            rawNonce: nonce
+        // Decode the ID token to check the nonce (for debugging)
+        if let tokenParts = idTokenString.split(separator: ".").dropFirst().first,
+           let tokenData = Data(base64Encoded: String(tokenParts), options: .ignoreUnknownCharacters),
+           let tokenJSON = try? JSONSerialization.jsonObject(with: tokenData) as? [String: Any],
+           let nonceInToken = tokenJSON["nonce"] as? String {
+            print("🔑 Nonce from Apple's ID token (hex): \(nonceInToken)")
+            print("🔑 Hash match: \(nonceInToken == expectedHash)")
+        }
+        
+        // Use the Apple-specific credential method as per Firebase documentation
+        // This includes the user's full name from the first sign-in
+        let credential = OAuthProvider.appleCredential(
+            withIDToken: idTokenString,
+            rawNonce: nonce,
+            fullName: appleIDCredential.fullName
         )
         
-        Auth.auth().signIn(with: credential) { result, error in
+        print("✅ Created Firebase credential with raw nonce")
+        
+        Auth.auth().signIn(with: credential) { [weak self] result, error in
+            // Clear the nonce after Firebase processes it (success or failure)
+            self?.currentNonce = nil
+            
             if let error = error {
+                let nsError = error as NSError
                 print("❌ Apple Sign-In error: \(error.localizedDescription)")
+                print("   Error domain: \(nsError.domain)")
+                print("   Error code: \(nsError.code)")
+                let userInfo = nsError.userInfo
+                if !userInfo.isEmpty {
+                    print("   Error userInfo: \(userInfo)")
+                }
                 completion(.failure(error))
                 return
             }
             
             if let user = result?.user {
+                print("✅ Apple Sign-In successful! User ID: \(user.uid)")
+                
+                // Extract display name from Apple credential (only available on first sign-in)
+                var displayName: String? = nil
+                if let fullName = appleIDCredential.fullName {
+                    var nameComponents: [String] = []
+                    if let givenName = fullName.givenName {
+                        nameComponents.append(givenName)
+                    }
+                    if let familyName = fullName.familyName {
+                        nameComponents.append(familyName)
+                    }
+                    if !nameComponents.isEmpty {
+                        displayName = nameComponents.joined(separator: " ")
+                        print("📝 Extracted Apple display name: \(displayName!)")
+                    }
+                }
+                
                 DispatchQueue.main.async {
-                    self.user = user
-                    self.isEmailVerified = true // Apple accounts are always verified
-                    UserService.shared.createUserProfile(user: user)
+                    self?.user = user
+                    self?.isEmailVerified = true // Apple accounts are always verified
+                    UserService.shared.createUserProfile(user: user, displayName: displayName)
                 }
                 completion(.success(user))
+            } else {
+                print("❌ No user returned from Firebase")
+                completion(.failure(NSError(domain: "AppleSignIn", code: -1, userInfo: [NSLocalizedDescriptionKey: "No user returned from Firebase"])))
             }
         }
     }
@@ -280,6 +465,9 @@ class AuthViewModel: ObservableObject {
     func startSignInWithAppleFlow() -> String {
         let nonce = randomNonceString()
         currentNonce = nonce
+        print("🔑 Generated raw nonce (length: \(nonce.count))")
+        let hashedNonce = nonce.sha256Hex() // Use hex encoding for Apple Sign-In
+        print("🔑 Hashed nonce for Apple request (hex, length: \(hashedNonce.count))")
         return nonce
     }
     
@@ -324,13 +512,30 @@ class AuthViewModel: ObservableObject {
         
         return hashString
     }
+    
+    private func sha256Hex(_ input: String) -> String {
+        let inputData = Data(input.utf8)
+        let hashedData = SHA256.hash(data: inputData)
+        return hashedData.compactMap {
+            String(format: "%02x", $0)
+        }.joined()
+    }
+    
 }
 
 extension String {
     func sha256() -> String {
         let inputData = Data(self.utf8)
         let hashedData = SHA256.hash(data: inputData)
+        // Return base64-encoded hash for Apple Sign-In request
         return Data(hashedData).base64EncodedString()
+    }
+    
+    // Alternative: hex-encoded hash (for debugging)
+    func sha256Hex() -> String {
+        let inputData = Data(self.utf8)
+        let hashedData = SHA256.hash(data: inputData)
+        return hashedData.compactMap { String(format: "%02x", $0) }.joined()
     }
 }
 

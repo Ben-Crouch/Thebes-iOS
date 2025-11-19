@@ -12,6 +12,7 @@ import AuthenticationServices
 struct SignupView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) var colorScheme
     @State private var email = ""
     @State private var password = ""
     @State private var confirmPassword = ""
@@ -29,13 +30,9 @@ struct SignupView: View {
 
     var body: some View {
         ZStack {
-            // Gradient background
+            // Gradient background - adjusted for dark mode visibility
             LinearGradient(
-                gradient: Gradient(colors: [
-                    Color.black,
-                    Color.black.opacity(0.8),
-                    Color.black
-                ]),
+                gradient: Gradient(colors: AppColors.gradientColors(for: colorScheme)),
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
@@ -213,7 +210,8 @@ struct SignupView: View {
                         onRequest: { request in
                             let nonce = authViewModel.startSignInWithAppleFlow()
                             request.requestedScopes = [.fullName, .email]
-                            request.nonce = nonce.sha256()
+                            // Apple Sign-In expects hex-encoded SHA256, not base64
+                            request.nonce = nonce.sha256Hex()
                         },
                         onCompletion: { result in
                             switch result {

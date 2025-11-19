@@ -12,17 +12,14 @@ struct HomeView: View {
     @StateObject private var viewModel = HomeViewModel() // ✅ Ensure StateObject is used only here
     @State private var showSideMenu = false
     @State private var showSettingsView = false
+    @Environment(\.colorScheme) var colorScheme
     
     
 var body: some View {
     ZStack(alignment: .top) {
-        // Background with gradient (match global style)
+        // Background with gradient - adjusted for dark mode visibility
         LinearGradient(
-            gradient: Gradient(colors: [
-                Color.black,
-                Color.black.opacity(0.8),
-                Color.black
-            ]),
+            gradient: Gradient(colors: AppColors.gradientColors(for: colorScheme)),
             startPoint: .topLeading,
             endPoint: .bottomTrailing
         )

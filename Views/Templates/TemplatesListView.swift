@@ -1,4 +1,5 @@
 //
+import SwiftUI
 //  TemplatesListView.swift
 //  Thebes
 //
@@ -9,6 +10,7 @@ import SwiftUI
 
 struct TemplatesListView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
+    @Environment(\.colorScheme) var colorScheme
     @Environment(\.dismiss) private var dismiss
     @StateObject private var viewModel = TemplatesListViewModel(userId: "")
     @State private var showSideMenu = false
@@ -17,13 +19,9 @@ struct TemplatesListView: View {
     
     var body: some View {
         ZStack {
-            // Modern gradient background
+            // Gradient background - adjusted for dark mode visibility
             LinearGradient(
-                gradient: Gradient(colors: [
-                    Color.black,
-                    Color.black.opacity(0.8),
-                    Color.black
-                ]),
+                gradient: Gradient(colors: AppColors.gradientColors(for: colorScheme)),
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
@@ -85,7 +83,7 @@ struct TemplatesListView: View {
             
             // Side menu
             if showSideMenu {
-                Color.black.opacity(0.4)
+                Color(uiColor: .black).opacity(0.4)
                     .edgesIgnoringSafeArea(.all)
                     .onTapGesture {
                         withAnimation {
@@ -155,6 +153,7 @@ struct TemplatesListView: View {
 
 struct TemplatesListHeaderView: View {
     @ObservedObject var viewModel: TemplatesListViewModel
+    @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
         VStack(spacing: 16) {
@@ -238,6 +237,7 @@ struct TemplatesListHeaderView: View {
 
 struct TemplateListItemCard: View {
     let template: Template
+    @Environment(\.colorScheme) var colorScheme
     let onTap: () -> Void
     
     var body: some View {

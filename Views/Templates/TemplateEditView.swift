@@ -1,4 +1,5 @@
 //  TemplateEditView.swift
+import SwiftUI
 //  Thebes
 //
 //  Created by Ben on 12/03/2025.
@@ -8,6 +9,7 @@ import SwiftUI
 
 struct TemplateEditView: View {
     @StateObject private var viewModel: EditTemplateViewModel
+    @Environment(\.colorScheme) var colorScheme
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject var authViewModel: AuthViewModel
     var onDelete: (() -> Void)?  // Added onDelete closure
@@ -22,13 +24,9 @@ struct TemplateEditView: View {
 
     var body: some View {
         ZStack {
-            // Match EditWorkoutView gradient background
+            // Gradient background - adjusted for dark mode visibility
             LinearGradient(
-                gradient: Gradient(colors: [
-                    Color.black,
-                    Color.black.opacity(0.8),
-                    Color.black
-                ]),
+                gradient: Gradient(colors: AppColors.gradientColors(for: colorScheme)),
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )

@@ -1,4 +1,5 @@
 //
+import SwiftUI
 //  FriendsView.swift
 //  Thebes
 //
@@ -9,6 +10,7 @@ import SwiftUI
 
 struct FriendsView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
+    @Environment(\.colorScheme) var colorScheme
     @StateObject private var viewModel = FriendsViewModel()
     let onSocialStatsChanged: (() -> Void)?
     @Environment(\.dismiss) private var dismiss
@@ -17,13 +19,9 @@ struct FriendsView: View {
     
     var body: some View {
         ZStack {
-            // Gradient background
+            // Gradient background - adjusted for dark mode visibility
             LinearGradient(
-                gradient: Gradient(colors: [
-                    Color.black,
-                    Color.black.opacity(0.8),
-                    Color.black
-                ]),
+                gradient: Gradient(colors: AppColors.gradientColors(for: colorScheme)),
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
@@ -163,6 +161,7 @@ struct FriendsView: View {
 
 struct FriendUserCard: View {
     let user: UserProfile
+    @Environment(\.colorScheme) var colorScheme
     let currentUserId: String
     let onUnfriend: (String) -> Void
     let onViewProfile: (String) -> Void

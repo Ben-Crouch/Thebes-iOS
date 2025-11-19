@@ -11,18 +11,15 @@ import Charts
 struct TrackerView: View {
     @ObservedObject var viewModel: TrackerViewModel
     @EnvironmentObject var authViewModel: AuthViewModel
+    @Environment(\.colorScheme) var colorScheme
     @State private var showSideMenu = false
     @State private var showSettingsView = false
 
     var body: some View {
         ZStack(alignment: .top) {
-            // Gradient background matching Home, Challenges, and Workouts
+            // Gradient background - adjusted for dark mode visibility
             LinearGradient(
-                gradient: Gradient(colors: [
-                    Color.black,
-                    Color.black.opacity(0.8),
-                    Color.black
-                ]),
+                gradient: Gradient(colors: AppColors.gradientColors(for: colorScheme)),
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )

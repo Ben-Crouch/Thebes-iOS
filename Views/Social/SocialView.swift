@@ -58,6 +58,7 @@ struct SocialStatCard: View {
 
 struct SocialView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
+    @Environment(\.colorScheme) var colorScheme
     @StateObject private var viewModel = SocialViewModel()
     @FocusState private var isSearchFocused: Bool
     
@@ -71,13 +72,9 @@ struct SocialView: View {
     
     var body: some View {
         ZStack(alignment: .top) {
-            // Gradient background matching other views
+            // Gradient background - adjusted for dark mode visibility
             LinearGradient(
-                gradient: Gradient(colors: [
-                    Color.black,
-                    Color.black.opacity(0.8),
-                    Color.black
-                ]),
+                gradient: Gradient(colors: AppColors.gradientColors(for: colorScheme)),
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
