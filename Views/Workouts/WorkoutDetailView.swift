@@ -129,30 +129,32 @@ struct WorkoutDetailView: View {
                         }
                     }
 
-                    // Save as Template button
-                    Button(action: {
-                        showTemplateSheet = true
-                    }) {
-                        HStack(spacing: 12) {
-                            Image(systemName: "doc.on.doc.fill")
-                                .foregroundColor(AppColors.secondary)
-                                .font(.title3)
-                            
-                            Text("Save as Template")
-                                .font(.headline)
-                                .foregroundColor(.white)
-                            
-                            Spacer()
+                    // Save as Template button (only for owners)
+                    if viewModel.isCurrentUserOwner {
+                        Button(action: {
+                            showTemplateSheet = true
+                        }) {
+                            HStack(spacing: 12) {
+                                Image(systemName: "doc.on.doc.fill")
+                                    .foregroundColor(AppColors.secondary)
+                                    .font(.title3)
+                                
+                                Text("Save as Template")
+                                    .font(.headline)
+                                    .foregroundColor(.white)
+                                
+                                Spacer()
+                            }
+                            .padding(20)
+                            .background(
+                                RoundedRectangle(cornerRadius: 16)
+                                    .fill(Color.white.opacity(0.05))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 16)
+                                            .stroke(AppColors.secondary.opacity(0.3), lineWidth: 1)
+                                    )
+                            )
                         }
-                        .padding(20)
-                        .background(
-                            RoundedRectangle(cornerRadius: 16)
-                                .fill(Color.white.opacity(0.05))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 16)
-                                        .stroke(AppColors.secondary.opacity(0.3), lineWidth: 1)
-                                )
-                        )
                     }
                 }
                 .padding(.horizontal, 20)

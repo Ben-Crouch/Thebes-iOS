@@ -71,6 +71,8 @@ var body: some View {
             isPresented: $showSideMenu,
             username: viewModel.username,
             profileImageUrl: viewModel.profileImageUrl,
+            selectedAvatar: viewModel.selectedAvatar,
+            useGradientAvatar: viewModel.useGradientAvatar,
             userEmail: authViewModel.user?.email,
             onViewProfile: {
                 // TODO: Navigate to user's own profile
@@ -113,26 +115,12 @@ var body: some View {
                 
                 VStack(spacing: 16) {
                     HStack(spacing: 16) {
-                        if let imageUrl = viewModel.profileImageUrl,
-                           let url = URL(string: imageUrl) {
-                            AsyncImage(url: url) { image in
-                                image.resizable()
-                            } placeholder: {
-                                ProgressView()
-                                    .progressViewStyle(CircularProgressViewStyle(tint: AppColors.secondary))
-                            }
-                            .frame(width: 80, height: 80)
-                            .clipShape(Circle())
-                            .overlay(
-                                Circle()
-                                    .stroke(AppColors.secondary.opacity(0.3), lineWidth: 2)
-                            )
-                        } else {
-                            Image(systemName: "person.crop.circle.fill")
-                                .resizable()
-                                .frame(width: 80, height: 80)
-                                .foregroundColor(AppColors.secondary.opacity(0.6))
-                        }
+                        ProfileAvatarView(
+                            profilePic: viewModel.profileImageUrl,
+                            selectedAvatar: viewModel.selectedAvatar,
+                            useGradientAvatar: viewModel.useGradientAvatar,
+                            size: 80
+                        )
 
                         VStack(alignment: .leading, spacing: 4) {
                             Text(viewModel.username)

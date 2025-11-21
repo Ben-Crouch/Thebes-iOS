@@ -55,6 +55,25 @@ struct WorkoutsListView: View {
                     .padding(.vertical, 20)
                 }
             }
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Text("Workout List")
+                        .font(.title2)
+                        .fontWeight(.bold)
+                        .foregroundColor(.white)
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: {
+                        withAnimation { showSideMenu.toggle() }
+                    }) {
+                        Image(systemName: "person.circle")
+                            .font(.system(size: 26))
+                            .foregroundColor(.white)
+                    }
+                }
+            }
+            .toolbarBackground(.hidden, for: .navigationBar)
+            .toolbarColorScheme(.dark, for: .navigationBar)
             .onAppear {
                 guard let userId = authViewModel.user?.uid else {
                     print("⚠️ No valid user ID found. Skipping WorkoutsListView data load.")
@@ -74,51 +93,27 @@ struct WorkoutsListView: View {
                 }
             }
             
-            // Side Menu Overlay
-            if showSideMenu {
-                Color(uiColor: .black).opacity(0.4)
-                    .edgesIgnoringSafeArea(.all)
-                    .onTapGesture {
-                        withAnimation {
-                            showSideMenu = false
-                        }
-                    }
-                
-                VStack(alignment: .leading, spacing: 20) {
-                    Button("User Settings") {
-                        // Navigate to user settings
-                    }
-                    .foregroundColor(.white)
-                    
-                    Button("Log Out") {
-                        authViewModel.signOut()
-                    }
-                    .foregroundColor(.white)
-                    
-                    Spacer()
+            // Side Menu
+            SideMenuView(
+                isPresented: $showSideMenu,
+                username: viewModel.username,
+                profileImageUrl: viewModel.profileImageUrl,
+                selectedAvatar: viewModel.selectedAvatar,
+                useGradientAvatar: viewModel.useGradientAvatar,
+                userEmail: authViewModel.user?.email,
+                onViewProfile: {
+                    // TODO: Navigate to user's own profile
+                },
+                onSettings: {
+                    // TODO: Navigate to settings
+                },
+                onAbout: {
+                    // TODO: Show about screen
+                },
+                onLogOut: {
+                    authViewModel.signOut()
                 }
-                .padding()
-                .frame(width: 250)
-                .background(AppColors.secondary)
-                .transition(.move(edge: .trailing))
-                .frame(maxWidth: .infinity, alignment: .trailing)
-            }
-        }
-        .toolbar {
-            ToolbarItem(placement: .principal) {
-                Text("Workouts")
-                    .font(.headline)
-                    .foregroundColor(.white)
-            }
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button(action: {
-                    withAnimation { showSideMenu.toggle() }
-                }) {
-                    Image(systemName: "person.circle")
-                        .font(.system(size: 26))
-                        .foregroundColor(.white)
-                }
-            }
+            )
         }
     }
 }
@@ -131,29 +126,12 @@ struct WorkoutsListHeaderView: View {
         VStack(spacing: 16) {
             // Profile Section
             HStack(spacing: 16) {
-                if let imageUrl = viewModel.profileImageUrl,
-                   let url = URL(string: imageUrl) {
-                    AsyncImage(url: url) { image in
-                        image.resizable()
-                    } placeholder: {
-                        ProgressView()
-                    }
-                    .frame(width: 70, height: 70)
-                    .clipShape(Circle())
-                    .overlay(
-                        Circle()
-                            .stroke(AppColors.secondary.opacity(0.3), lineWidth: 2)
-                    )
-                } else {
-                    Image(systemName: "person.crop.circle.fill")
-                        .resizable()
-                        .frame(width: 70, height: 70)
-                        .foregroundColor(.gray)
-                        .overlay(
-                            Circle()
-                                .stroke(AppColors.secondary.opacity(0.3), lineWidth: 2)
-                        )
-                }
+                ProfileAvatarView(
+                    profilePic: viewModel.profileImageUrl,
+                    selectedAvatar: viewModel.selectedAvatar,
+                    useGradientAvatar: viewModel.useGradientAvatar,
+                    size: 70
+                )
                 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(viewModel.username)

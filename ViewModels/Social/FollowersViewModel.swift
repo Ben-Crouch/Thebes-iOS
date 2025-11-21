@@ -55,11 +55,20 @@ class FollowersViewModel: ObservableObject {
                                 updatedFollowers.append(currentUserId)
                             }
                             
-                            UserService.shared.updateUserProfile(userId: userId, updates: ["followers": updatedFollowers]) { _ in
+                            UserService.shared.updateUserProfile(userId: userId, updates: ["followers": updatedFollowers]) { followersUpdateSuccess in
                                 DispatchQueue.main.async {
-                                    // Trigger callback to refresh social stats
-                                    self.onSocialStatsChanged?()
-                                    completion(true)
+                                    if followersUpdateSuccess {
+                                        // Trigger callback to refresh social stats
+                                        self.onSocialStatsChanged?()
+                                        completion(true)
+                                    } else {
+                                        print("❌ Failed to update target user's followers list")
+                                        // Rollback: remove from current user's following list
+                                        let rollbackFollowing = profile.following.filter { $0 != userId }
+                                        UserService.shared.updateUserProfile(userId: currentUserId, updates: ["following": rollbackFollowing]) { _ in
+                                            completion(false)
+                                        }
+                                    }
                                 }
                             }
                         } else {

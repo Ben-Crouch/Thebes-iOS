@@ -49,13 +49,25 @@ class FollowingViewModel: ObservableObject {
                             // Real user - update followers array
                             let updatedFollowers = targetProfile.followers.filter { $0 != currentUserId }
                             
-                            UserService.shared.updateUserProfile(userId: userId, updates: ["followers": updatedFollowers]) { _ in
+                            UserService.shared.updateUserProfile(userId: userId, updates: ["followers": updatedFollowers]) { followersUpdateSuccess in
                                 DispatchQueue.main.async {
-                                    // Remove from local array
-                                    self.following.removeAll { $0.uid == userId }
-                                    // Trigger callback to refresh social stats
-                                    self.onSocialStatsChanged?()
-                                    completion(true)
+                                    if followersUpdateSuccess {
+                                        // Remove from local array
+                                        self.following.removeAll { $0.uid == userId }
+                                        // Trigger callback to refresh social stats
+                                        self.onSocialStatsChanged?()
+                                        completion(true)
+                                    } else {
+                                        print("❌ Failed to update target user's followers list during unfollow")
+                                        // Rollback: add back to current user's following list
+                                        var rollbackFollowing = profile.following
+                                        if !rollbackFollowing.contains(userId) {
+                                            rollbackFollowing.append(userId)
+                                        }
+                                        UserService.shared.updateUserProfile(userId: currentUserId, updates: ["following": rollbackFollowing]) { _ in
+                                            completion(false)
+                                        }
+                                    }
                                 }
                             }
                         } else {

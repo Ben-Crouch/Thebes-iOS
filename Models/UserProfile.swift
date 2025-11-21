@@ -13,6 +13,8 @@ struct UserProfile: Codable, Identifiable {
     var displayName: String
     var email: String
     var profilePic: String?
+    var selectedAvatar: String? // DefaultAvatar rawValue (e.g., "teal", "blue")
+    var useGradientAvatar: Bool? // If true, use gradient avatar even if profilePic exists
     var createdAt: Date
     var preferredWeightUnit: String
     var trackedExercise: String?

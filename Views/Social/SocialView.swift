@@ -116,29 +116,12 @@ struct SocialView: View {
                                 Spacer()
                                 
                                 // User avatar
-                                if let imageUrl = viewModel.profileImageUrl,
-                                   let url = URL(string: imageUrl) {
-                                    AsyncImage(url: url) { image in
-                                        image.resizable()
-                                    } placeholder: {
-                                        ProgressView()
-                                    }
-                                    .frame(width: 50, height: 50)
-                                    .clipShape(Circle())
-                                    .overlay(
-                                        Circle()
-                                            .stroke(AppColors.secondary.opacity(0.3), lineWidth: 2)
-                                    )
-                                } else {
-                                    Image(systemName: "person.crop.circle.fill")
-                                        .resizable()
-                                        .frame(width: 50, height: 50)
-                                        .foregroundColor(.gray)
-                                        .overlay(
-                                            Circle()
-                                                .stroke(AppColors.secondary.opacity(0.3), lineWidth: 2)
-                                        )
-                                }
+                                ProfileAvatarView(
+                                    profilePic: viewModel.profileImageUrl,
+                                    selectedAvatar: viewModel.selectedAvatar,
+                                    useGradientAvatar: viewModel.useGradientAvatar,
+                                    size: 50
+                                )
                             }
                         }
                         .padding(20)
@@ -275,6 +258,8 @@ struct SocialView: View {
                 isPresented: $showSideMenu,
                 username: viewModel.username,
                 profileImageUrl: viewModel.profileImageUrl,
+                selectedAvatar: viewModel.selectedAvatar,
+                useGradientAvatar: viewModel.useGradientAvatar,
                 userEmail: authViewModel.user?.email,
                 onViewProfile: {
                     // TODO: Navigate to user's own profile
@@ -347,7 +332,7 @@ struct SocialView: View {
             .environmentObject(authViewModel)
         }
         .sheet(isPresented: $showRecentActivity) {
-            NavigationView {
+            NavigationStack {
                 RecentActivityView()
                     .environmentObject(authViewModel)
             }

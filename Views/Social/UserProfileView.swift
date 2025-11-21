@@ -16,6 +16,10 @@ struct UserProfileView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
     @StateObject private var viewModel = UserProfileViewModel()
     @Environment(\.dismiss) private var dismiss
+    @State private var showToast = false
+    @State private var toastMessage = ""
+    @State private var selectedWorkoutId: String? = nil
+    @State private var showWorkoutDetail = false
     
     private var isCurrentUser: Bool {
         userId == authViewModel.user?.uid
@@ -110,34 +114,12 @@ struct UserProfileView: View {
                                 // Profile Picture and Info
                                 HStack(spacing: 16) {
                                     // Profile Picture
-                                    if let imageUrl = profile.profilePic,
-                                       let url = URL(string: imageUrl) {
-                                        AsyncImage(url: url) { image in
-                                            image.resizable()
-                                        } placeholder: {
-                                            Circle()
-                                                .fill(Color.gray.opacity(0.3))
-                                        }
-                                        .frame(width: 80, height: 80)
-                                        .clipShape(Circle())
-                                        .overlay(
-                                            Circle()
-                                                .stroke(AppColors.secondary.opacity(0.3), lineWidth: 2)
-                                        )
-                                    } else {
-                                        Circle()
-                                            .fill(Color.gray.opacity(0.3))
-                                            .frame(width: 80, height: 80)
-                                            .overlay(
-                                                Image(systemName: "person.fill")
-                                                    .foregroundColor(.gray)
-                                                    .font(.title2)
-                                            )
-                                            .overlay(
-                                                Circle()
-                                                    .stroke(AppColors.secondary.opacity(0.3), lineWidth: 2)
-                                            )
-                                    }
+                                    ProfileAvatarView(
+                                        profilePic: profile.profilePic,
+                                        selectedAvatar: DefaultAvatar.from(rawValue: profile.selectedAvatar),
+                                        useGradientAvatar: profile.useGradientAvatar ?? false,
+                                        size: 80
+                                    )
                                     
                                     // User Info
                                     VStack(alignment: .leading, spacing: 8) {
@@ -208,15 +190,21 @@ struct UserProfileView: View {
                                         guard let currentUserId = authViewModel.user?.uid else { return }
                                         
                                         if isFollowing {
+                                            let displayName = viewModel.userProfile?.displayName ?? "User"
                                             viewModel.unfollowUser(userId: userId, currentUserId: currentUserId) { success in
                                                 if success {
                                                     print("✅ Successfully unfollowed user")
+                                                    toastMessage = "Unfollowed \(displayName)"
+                                                    showToast = true
                                                 }
                                             }
                                         } else {
+                                            let displayName = viewModel.userProfile?.displayName ?? "User"
                                             viewModel.followUser(userId: userId, currentUserId: currentUserId) { success in
                                                 if success {
                                                     print("✅ Successfully followed user")
+                                                    toastMessage = "Following \(displayName)"
+                                                    showToast = true
                                                 }
                                             }
                                         }
@@ -303,7 +291,19 @@ struct UserProfileView: View {
                                 } else {
                                     LazyVStack(spacing: 12) {
                                         ForEach(viewModel.recentWorkouts, id: \.id) { workout in
-                                            UserWorkoutCard(workout: workout)
+                                            Button(action: {
+                                                print("🔵 [UserProfileView] Card tapped: \(workout.title)")
+                                                if let workoutId = workout.id {
+                                                    print("🔵 [UserProfileView] Setting selectedWorkoutId: \(workoutId)")
+                                                    selectedWorkoutId = workoutId
+                                                    showWorkoutDetail = true
+                                                } else {
+                                                    print("⚠️ [UserProfileView] workout.id is nil!")
+                                                }
+                                            }) {
+                                                UserWorkoutCard(workout: workout)
+                                            }
+                                            .buttonStyle(PlainButtonStyle())
                                         }
                                     }
                                 }
@@ -359,6 +359,24 @@ struct UserProfileView: View {
                 }
                 .padding(.bottom, 20)
             }
+            }
+            
+            // Toast overlay
+            ToastView(message: toastMessage, isShowing: $showToast)
+                .zIndex(1)
+        }
+        .navigationDestination(isPresented: $showWorkoutDetail) {
+            if let workoutId = selectedWorkoutId,
+               let currentUserId = authViewModel.user?.uid {
+                WorkoutDetailViewWrapper(
+                    workoutId: workoutId,
+                    currentUserId: currentUserId
+                )
+                .environmentObject(authViewModel)
+                .onDisappear {
+                    selectedWorkoutId = nil
+                    showWorkoutDetail = false
+                }
             }
         }
         .onAppear {

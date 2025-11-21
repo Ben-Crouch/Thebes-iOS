@@ -17,6 +17,8 @@ class SocialViewModel: ObservableObject {
     @Published var errorMessage: String?
     @Published var username: String = "User"
     @Published var profileImageUrl: String?
+    @Published var selectedAvatar: DefaultAvatar = .teal
+    @Published var useGradientAvatar: Bool = false
     
     func fetchSocialStats(for userId: String) {
         SocialService.shared.fetchCurrentUserSocialStats(userId: userId) { friendsCount, followersCount, followingCount in
@@ -33,6 +35,8 @@ class SocialViewModel: ObservableObject {
                 if let profile = userProfile {
                     self.username = profile.displayName
                     self.profileImageUrl = profile.profilePic
+                    self.selectedAvatar = DefaultAvatar.from(rawValue: profile.selectedAvatar)
+                    self.useGradientAvatar = profile.useGradientAvatar ?? false
                 }
             }
         }

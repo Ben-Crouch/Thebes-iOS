@@ -12,6 +12,8 @@ class TemplatesListViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var errorMessage: String?
     @Published var profileImageUrl: String?
+    @Published var selectedAvatar: DefaultAvatar = .teal
+    @Published var useGradientAvatar: Bool = false
     @Published var username: String = "User"
     @Published var templateCount: Int = 0
     
@@ -53,6 +55,8 @@ class TemplatesListViewModel: ObservableObject {
                 }
                 self?.username = profile.displayName
                 self?.profileImageUrl = profile.profilePic
+                self?.selectedAvatar = DefaultAvatar.from(rawValue: profile.selectedAvatar)
+                self?.useGradientAvatar = profile.useGradientAvatar ?? false
             }
         }
     }

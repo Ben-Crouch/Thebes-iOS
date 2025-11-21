@@ -48,20 +48,14 @@ struct WorkoutsView: View {
                 }
                 .padding(.bottom, 20)
             }
-            .onAppear {
-                guard let userId = authViewModel.user?.uid else {
-                    print("⚠️ No valid user ID found. Skipping WorkoutsView data load.")
-                    return
-                }
-                viewModel.loadUserProfile(for: userId)
-                viewModel.loadMostRecentWorkout(for: userId)
-            }
             
             // Side Menu
             SideMenuView(
                 isPresented: $showSideMenu,
                 username: viewModel.username,
                 profileImageUrl: viewModel.profileImageUrl,
+                selectedAvatar: viewModel.selectedAvatar,
+                useGradientAvatar: viewModel.useGradientAvatar,
                 userEmail: authViewModel.user?.email,
                 onViewProfile: {
                     // TODO: Navigate to user's own profile
@@ -81,6 +75,14 @@ struct WorkoutsView: View {
             ProfileSettingsView()
                 .environmentObject(authViewModel)
         }
+        .onAppear {
+            guard let userId = authViewModel.user?.uid else {
+                print("⚠️ No valid user ID found. Skipping WorkoutsView data load.")
+                return
+            }
+            viewModel.loadUserProfile(for: userId)
+            viewModel.loadMostRecentWorkout(for: userId)
+        }
     }
 }
 
@@ -92,29 +94,12 @@ struct WorkoutHeaderView: View {
         VStack(spacing: 16) {
             // Profile Section
             HStack(spacing: 16) {
-                if let imageUrl = viewModel.profileImageUrl,
-                   let url = URL(string: imageUrl) {
-                    AsyncImage(url: url) { image in
-                        image.resizable()
-                    } placeholder: {
-                        ProgressView()
-                    }
-                    .frame(width: 70, height: 70)
-                    .clipShape(Circle())
-                    .overlay(
-                        Circle()
-                            .stroke(AppColors.secondary.opacity(0.3), lineWidth: 2)
-                    )
-                } else {
-                    Image(systemName: "person.crop.circle.fill")
-                        .resizable()
-                        .frame(width: 70, height: 70)
-                        .foregroundColor(.gray)
-                        .overlay(
-                            Circle()
-                                .stroke(AppColors.secondary.opacity(0.3), lineWidth: 2)
-                        )
-                }
+                ProfileAvatarView(
+                    profilePic: viewModel.profileImageUrl,
+                    selectedAvatar: viewModel.selectedAvatar,
+                    useGradientAvatar: viewModel.useGradientAvatar,
+                    size: 70
+                )
                 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(viewModel.username)

@@ -21,6 +21,8 @@ struct SocialSearchView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var searchText: String = ""
     @State private var selectedUserId: String? = nil
+    @State private var showToast = false
+    @State private var toastMessage = ""
     
     var body: some View {
         ZStack {
@@ -165,7 +167,21 @@ struct SocialSearchView: View {
                                 user: user,
                                 currentUserId: authViewModel.user?.uid ?? "",
                                 onFollowToggle: { userId in
+                                    // Check if user exists in search results (for toast message)
+                                    let userExists = viewModel.searchResults.contains(where: { $0.uid == userId })
+                                    
+                                    // Note: We can't reliably determine if we're following or unfollowing synchronously
+                                    // The UserSearchCard handles the state toggle, but for the toast we'll show after action
                                     viewModel.toggleFollow(userId: userId, currentUserId: authViewModel.user?.uid ?? "")
+                                    
+                                    // Show toast after a short delay if user exists in results
+                                    if userExists {
+                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                                            // Show a generic update message since we can't reliably determine the action here
+                                            toastMessage = "Updated"
+                                            showToast = true
+                                        }
+                                    }
                                 },
                                 onViewProfile: { userId in
                                     print("🔍 SocialSearchView: onViewProfile called with userId: \(userId)")
@@ -192,6 +208,10 @@ struct SocialSearchView: View {
                 }
             }
             }
+            
+            // Toast overlay
+            ToastView(message: toastMessage, isShowing: $showToast)
+                .zIndex(1)
         }
         .onAppear {
             if !searchQuery.isEmpty {
@@ -209,17 +229,19 @@ struct SocialSearchView: View {
             },
             set: { _ in selectedUserId = nil }
         )) { selectedUser in
-            UserProfileView(
-                userId: selectedUser.id,
-                onSocialStatsChanged: {
-                    // Refresh social stats when user follows/unfollows from profile
-                    if authViewModel.user?.uid != nil {
-                        // Refresh the search results to update follow status
-                        performSearch()
+            NavigationStack {
+                UserProfileView(
+                    userId: selectedUser.id,
+                    onSocialStatsChanged: {
+                        // Refresh social stats when user follows/unfollows from profile
+                        if authViewModel.user?.uid != nil {
+                            // Refresh the search results to update follow status
+                            performSearch()
+                        }
                     }
-                }
-            )
-            .environmentObject(authViewModel)
+                )
+                .environmentObject(authViewModel)
+            }
         }
     }
     
@@ -266,26 +288,12 @@ struct UserSearchCard: View {
                 print("✅ UserSearchCard: Calling onViewProfile with uid: \(user.uid)")
                 onViewProfile(user.uid)
             }) {
-                if let imageUrl = user.profilePic,
-                   let url = URL(string: imageUrl) {
-                    AsyncImage(url: url) { image in
-                        image.resizable()
-                    } placeholder: {
-                        Circle()
-                            .fill(Color.gray.opacity(0.3))
-                    }
-                    .frame(width: 50, height: 50)
-                    .clipShape(Circle())
-                } else {
-                    Circle()
-                        .fill(Color.gray.opacity(0.3))
-                        .frame(width: 50, height: 50)
-                        .overlay(
-                            Image(systemName: "person.fill")
-                                .foregroundColor(.gray)
-                                .font(.title3)
-                        )
-                }
+                ProfileAvatarView(
+                    profilePic: user.profilePic,
+                    selectedAvatar: DefaultAvatar.from(rawValue: user.selectedAvatar),
+                    useGradientAvatar: user.useGradientAvatar ?? false,
+                    size: 50
+                )
             }
             .buttonStyle(PlainButtonStyle())
             

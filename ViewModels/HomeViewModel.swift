@@ -10,6 +10,8 @@ import Foundation
 class HomeViewModel: ObservableObject {
     @Published var username: String = "test"
     @Published var profileImageUrl: String? = nil
+    @Published var selectedAvatar: DefaultAvatar = .teal
+    @Published var useGradientAvatar: Bool = false
     @Published var followerCount: Int = 0
     @Published var followingCount: Int = 0
     @Published var workoutCountLast30Days: Int = 0
@@ -27,6 +29,8 @@ class HomeViewModel: ObservableObject {
                 guard let profile = userProfile else { return }
                 self.username = profile.displayName
                 self.profileImageUrl = profile.profilePic
+                self.selectedAvatar = DefaultAvatar.from(rawValue: profile.selectedAvatar)
+                self.useGradientAvatar = profile.useGradientAvatar ?? false
                 self.followerCount = profile.followers.count
                 self.followingCount = profile.following.count
                 self.trackedExercise = profile.trackedExercise

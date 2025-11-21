@@ -53,14 +53,22 @@ class UserService {
                 print("   ⚠️ Using fallback displayName: \(finalDisplayName)")
             }
             
+            // Preserve existing followers and following arrays if document exists, otherwise initialize to empty arrays
+            let existingFollowers = document?.data()?["followers"] as? [String] ?? []
+            let existingFollowing = document?.data()?["following"] as? [String] ?? []
+            
             let userData: [String: Any] = [
                 "uid": user.uid,
                 "displayName": finalDisplayName,
                 "email": user.email ?? "",
                 "profilePic": user.photoURL?.absoluteString ?? "",
+                "selectedAvatar": document?.data()?["selectedAvatar"] as? String ?? "teal",
+                "useGradientAvatar": document?.data()?["useGradientAvatar"] as? Bool ?? false,
                 "createdAt": documentExists ? (document?.data()?["createdAt"] ?? Timestamp()) : Timestamp(),
                 "preferredWeightUnit": document?.data()?["preferredWeightUnit"] as? String ?? "kg",
-                "tagline": document?.data()?["tagline"] as? String ?? UserTagline.fitnessEnthusiast.rawValue
+                "tagline": document?.data()?["tagline"] as? String ?? UserTagline.fitnessEnthusiast.rawValue,
+                "followers": existingFollowers, // Preserve existing or initialize to empty array
+                "following": existingFollowing  // Preserve existing or initialize to empty array
             ]
             
             print("   Saving userData with displayName: \(finalDisplayName)")
@@ -109,13 +117,63 @@ class UserService {
             }
             
             // Try to decode as UserProfile first (real users)
-            do {
-                let userProfile = try document.data(as: UserProfile.self)
+            let documentData = document.data() ?? [:]
+            
+            // Check if followers/following fields are missing (legacy profiles)
+            let hasFollowers = documentData["followers"] != nil
+            let hasFollowing = documentData["following"] != nil
+            
+            if !hasFollowers || !hasFollowing {
+                print("⚠️ Profile missing followers/following fields, updating document...")
+                // Update document to include missing fields with empty arrays
+                var updates: [String: Any] = [:]
+                if !hasFollowers {
+                    updates["followers"] = [] as [String]
+                }
+                if !hasFollowing {
+                    updates["following"] = [] as [String]
+                }
+                document.reference.updateData(updates) { error in
+                    if let error = error {
+                        print("⚠️ Error updating missing followers/following: \(error.localizedDescription)")
+                    } else {
+                        print("✅ Updated profile with missing followers/following fields")
+                    }
+                }
+            }
+            
+            // Ensure followers and following arrays exist for decoding
+            var finalData = documentData
+            if documentData["followers"] == nil {
+                finalData["followers"] = [] as [String]
+            }
+            if documentData["following"] == nil {
+                finalData["following"] = [] as [String]
+            }
+            
+            // Manually create the UserProfile to ensure all fields are present
+            // First try to create as UserProfile (real user)
+            let userProfile = UserProfile(
+                id: document.documentID,
+                uid: finalData["uid"] as? String ?? document.documentID,
+                displayName: finalData["displayName"] as? String ?? "Unknown",
+                email: finalData["email"] as? String ?? "",
+                profilePic: finalData["profilePic"] as? String,
+                selectedAvatar: finalData["selectedAvatar"] as? String,
+                useGradientAvatar: finalData["useGradientAvatar"] as? Bool,
+                createdAt: (finalData["createdAt"] as? Timestamp)?.dateValue() ?? Date(),
+                preferredWeightUnit: finalData["preferredWeightUnit"] as? String ?? "kg",
+                trackedExercise: finalData["trackedExercise"] as? String,
+                tagline: finalData["tagline"] as? String,
+                followers: finalData["followers"] as? [String] ?? [],
+                following: finalData["following"] as? [String] ?? []
+            )
+            
+            // Check if this looks like a real user profile (has uid matching document ID or has email)
+            if finalData["uid"] != nil || !(finalData["email"] as? String ?? "").isEmpty {
                 print("✅ Found real user profile: \(userProfile.displayName)")
                 completion(userProfile)
                 return
-            } catch {
-                print("📝 Not a real user profile, trying mock user...")
             }
             
             // Try to decode as MockUserProfile and convert to UserProfile
@@ -138,6 +196,8 @@ class UserService {
                     displayName: mockUser.displayName,
                     email: mockUser.email,
                     profilePic: nil,
+                    selectedAvatar: documentData["selectedAvatar"] as? String ?? "teal",
+                    useGradientAvatar: documentData["useGradientAvatar"] as? Bool ?? false,
                     createdAt: Date(),
                     preferredWeightUnit: mockUser.preferredWeightUnit,
                     trackedExercise: nil,
@@ -162,12 +222,27 @@ class UserService {
     
     /// Updates a user profile in Firestore
     func updateUserProfile(userId: String, updates: [String: Any], completion: @escaping (Bool) -> Void) {
+        print("📝 updateUserProfile called for userId: \(userId)")
+        print("📝 Updates: \(updates.keys.joined(separator: ", "))")
+        
         usersCollection.document(userId).updateData(updates) { error in
             if let error = error {
-                print("❌ Error updating user profile: \(error.localizedDescription)")
+                let nsError = error as NSError
+                print("❌ Error updating user profile for \(userId): \(error.localizedDescription)")
+                print("   Error domain: \(nsError.domain)")
+                print("   Error code: \(nsError.code)")
+                if !nsError.userInfo.isEmpty {
+                    print("   Error userInfo: \(nsError.userInfo)")
+                }
                 completion(false)
             } else {
-                print("✅ User profile updated successfully")
+                print("✅ User profile updated successfully for \(userId)")
+                if let followers = updates["followers"] as? [String] {
+                    print("   Updated followers count: \(followers.count)")
+                }
+                if let following = updates["following"] as? [String] {
+                    print("   Updated following count: \(following.count)")
+                }
                 completion(true)
             }
         }

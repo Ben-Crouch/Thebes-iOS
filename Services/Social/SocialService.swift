@@ -153,55 +153,80 @@ class SocialService {
                 return
             }
             
-            print("✅ Found following IDs: \(followingIds)")
+            print("✅ Found \(followingIds.count) following IDs: \(followingIds)")
             
-            // Fetch user profiles for all following IDs
-            self.db.collection("users")
-                .whereField(FieldPath.documentID(), in: followingIds)
-                .getDocuments { snapshot, error in
-                    if let error = error {
-                        print("❌ Error fetching following users: \(error.localizedDescription)")
-                        completion([])
-                        return
-                    }
-                    
-                    guard let documents = snapshot?.documents else {
-                        print("⚠️ No following users found")
-                        completion([])
-                        return
-                    }
-                    
-                    print("✅ Retrieved snapshot with \(documents.count) following users")
-                    
-                    // Parse both real users and mock users
-                    let users: [UserProfile] = documents.compactMap { doc in
-                        // Try to parse as UserProfile first (real users)
-                        if let userProfile = try? doc.data(as: UserProfile.self) {
-                            return userProfile
+            // Firestore's "in" operator is limited to 10 items, so we need to chunk the followingIds
+            let followingBatches = followingIds.chunked(into: 10)
+            let queryGroup = DispatchGroup()
+            var allUsers: [UserProfile] = []
+            
+            // Fetch user profiles for each batch
+            for batch in followingBatches {
+                queryGroup.enter()
+                
+                self.db.collection("users")
+                    .whereField(FieldPath.documentID(), in: batch)
+                    .getDocuments { snapshot, error in
+                        defer { queryGroup.leave() }
+                        
+                        if let error = error {
+                            print("❌ Error fetching following users for batch: \(error.localizedDescription)")
+                            return
                         }
                         
-                        // Try to parse as MockUserProfile and convert to UserProfile
-                        if let mockUser = try? doc.data(as: MockUserProfile.self) {
-                            return UserProfile(
-                                id: mockUser.id,
-                                uid: doc.documentID,
-                                displayName: mockUser.displayName,
-                                email: mockUser.email,
-                                profilePic: nil,
-                                createdAt: Date(),
-                                preferredWeightUnit: mockUser.preferredWeightUnit,
-                                trackedExercise: nil,
-                                followers: [],
-                                following: []
-                            )
+                        guard let documents = snapshot?.documents else {
+                            print("⚠️ No users found for this batch")
+                            return
                         }
                         
-                        return nil
+                        print("✅ Retrieved \(documents.count) users from batch")
+                        
+                        // Parse both real users and mock users
+                        let users: [UserProfile] = documents.compactMap { doc in
+                            // Try to parse as UserProfile first (real users)
+                            if let userProfile = try? doc.data(as: UserProfile.self) {
+                                return userProfile
+                            }
+                            
+                            // Try to parse as MockUserProfile and convert to UserProfile
+                            if let mockUser = try? doc.data(as: MockUserProfile.self) {
+                                return UserProfile(
+                                    id: mockUser.id,
+                                    uid: doc.documentID,
+                                    displayName: mockUser.displayName,
+                                    email: mockUser.email,
+                                    profilePic: nil,
+                                    createdAt: Date(),
+                                    preferredWeightUnit: mockUser.preferredWeightUnit,
+                                    trackedExercise: nil,
+                                    followers: [],
+                                    following: []
+                                )
+                            }
+                            
+                            return nil
+                        }
+                        
+                        allUsers.append(contentsOf: users)
                     }
-                    
-                    print("✅ Found \(users.count) following users (real + mock)")
-                    completion(users)
+            }
+            
+            // Once all queries complete, return the combined results
+            queryGroup.notify(queue: .main) {
+                // Remove duplicates based on uid (in case of any overlap)
+                var uniqueUsers: [UserProfile] = []
+                var seenUids: Set<String> = []
+                
+                for user in allUsers {
+                    if !seenUids.contains(user.uid) {
+                        uniqueUsers.append(user)
+                        seenUids.insert(user.uid)
+                    }
                 }
+                
+                print("✅ Found \(uniqueUsers.count) unique following users (real + mock)")
+                completion(uniqueUsers)
+            }
         }
     }
     
@@ -325,64 +350,83 @@ class SocialService {
             // Change back to remove date filter for production
             let oneYearAgo = Calendar.current.date(byAdding: .year, value: -1, to: Date()) ?? Date()
             
-            // Fetch recent workouts from all followed users
-            self.db.collection("workouts")
-                .whereField("userId", in: followingIds)
-                .whereField("date", isGreaterThan: oneYearAgo)
-                .order(by: "date", descending: true)
-                .limit(to: min(limit * 3, 50)) // Fetch more to account for filtering
-                .getDocuments { snapshot, error in
-                    if let error = error {
-                        print("❌ Error fetching recent activity: \(error.localizedDescription)")
-                        completion([])
-                        return
-                    }
-                    
-                    guard let documents = snapshot?.documents else {
-                        print("⚠️ No recent workouts found")
-                        completion([])
-                        return
-                    }
-                    
-                    print("✅ Retrieved snapshot with \(documents.count) workouts")
-                    
-                    var activities: [RecentWorkoutActivity] = []
-                    let group = DispatchGroup()
-                    
-                    for document in documents {
-                        group.enter()
+            // Firestore's "in" operator is limited to 10 items, so we need to chunk the followingIds
+            let followingBatches = followingIds.chunked(into: 10)
+            let queryGroup = DispatchGroup()
+            var allWorkouts: [Workout] = []
+            
+            // Fetch workouts from each batch
+            for batch in followingBatches {
+                queryGroup.enter()
+                
+                self.db.collection("workouts")
+                    .whereField("userId", in: batch)
+                    .whereField("date", isGreaterThan: oneYearAgo)
+                    .order(by: "date", descending: true)
+                    .limit(to: min(limit * 3, 50)) // Fetch more to account for filtering
+                    .getDocuments { snapshot, error in
+                        defer { queryGroup.leave() }
                         
-                        do {
-                            let workout = try document.data(as: Workout.self)
-                            
-                            // Get user profile for this workout
-                            UserService.shared.fetchUserProfile(userId: workout.userId) { userProfile in
-                                defer { group.leave() }
-                                
-                                guard let profile = userProfile else { return }
-                                
-                                let activity = RecentWorkoutActivity(
-                                    id: workout.id ?? UUID().uuidString,
-                                    workoutTitle: workout.title,
-                                    workoutDate: workout.date,
-                                    userDisplayName: profile.displayName,
-                                    userProfilePic: profile.profilePic,
-                                    exerciseCount: "N/A" // Simplified for development
-                                )
-                                activities.append(activity)
+                        if let error = error {
+                            print("❌ Error fetching recent activity for batch: \(error.localizedDescription)")
+                            return
+                        }
+                        
+                        guard let documents = snapshot?.documents else {
+                            print("⚠️ No workouts found for this batch")
+                            return
+                        }
+                        
+                        print("✅ Retrieved \(documents.count) workouts from batch")
+                        
+                        for document in documents {
+                            if let workout = try? document.data(as: Workout.self) {
+                                allWorkouts.append(workout)
                             }
-                        } catch {
-                            print("❌ Error parsing workout: \(error.localizedDescription)")
-                            group.leave()
                         }
                     }
+            }
+            
+            // Once all queries complete, process the workouts
+            queryGroup.notify(queue: .main) {
+                // Sort all workouts by date (descending) and take the top ones
+                allWorkouts.sort { $0.date > $1.date }
+                let topWorkouts = Array(allWorkouts.prefix(limit))
+                
+                print("✅ Processing \(topWorkouts.count) workouts for recent activity")
+                
+                var activities: [RecentWorkoutActivity] = []
+                let profileGroup = DispatchGroup()
+                
+                for workout in topWorkouts {
+                    profileGroup.enter()
                     
-                    group.notify(queue: .main) {
-                        // Sort by date and limit to requested amount
-                        activities.sort { $0.workoutDate > $1.workoutDate }
-                        completion(Array(activities.prefix(limit)))
+                    // Get user profile for this workout
+                    UserService.shared.fetchUserProfile(userId: workout.userId) { userProfile in
+                        defer { profileGroup.leave() }
+                        
+                        guard let profile = userProfile else { return }
+                        
+                        let activity = RecentWorkoutActivity(
+                            id: workout.id ?? UUID().uuidString,
+                            workoutId: workout.id,
+                            userId: workout.userId,
+                            workoutTitle: workout.title,
+                            workoutDate: workout.date,
+                            userDisplayName: profile.displayName,
+                            userProfilePic: profile.profilePic,
+                            exerciseCount: "N/A" // Simplified for development
+                        )
+                        activities.append(activity)
                     }
                 }
+                
+                profileGroup.notify(queue: .main) {
+                    // Final sort by date (descending)
+                    activities.sort { $0.workoutDate > $1.workoutDate }
+                    completion(activities)
+                }
+            }
         }
     }
 }

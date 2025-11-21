@@ -99,7 +99,8 @@ struct TemplateEditView: View {
             Button("Cancel", role: .cancel) { }
             Button("Save") {
                 viewModel.saveEdits {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    // Wait for toast to show and be visible (3 seconds total: animation + display time)
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
                         dismiss()
                     }
                 }

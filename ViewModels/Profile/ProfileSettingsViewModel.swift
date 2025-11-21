@@ -12,12 +12,16 @@ final class ProfileSettingsViewModel: ObservableObject {
     @Published var displayName: String = ""
     @Published var email: String = ""
     @Published var profileImageUrl: String?
+    @Published var selectedAvatar: DefaultAvatar = .teal
+    @Published var useGradientAvatar: Bool = false
     @Published var preferredWeightUnit: WeightUnit = .kilograms
     @Published var tagline: UserTagline = .fitnessEnthusiast
     @Published var isLoading: Bool = false
     @Published var errorMessage: String?
     @Published var isGoogleConnected: Bool = false
     @Published var isAppleConnected: Bool = false
+    @Published var showToast: Bool = false
+    @Published var toastMessage: String = ""
     
     private let userService: UserService
     private var hasLoadedProfile = false
@@ -60,6 +64,8 @@ final class ProfileSettingsViewModel: ObservableObject {
                 } else {
                     self.profileImageUrl = nil
                 }
+                self.selectedAvatar = DefaultAvatar.from(rawValue: profile.selectedAvatar)
+                self.useGradientAvatar = profile.useGradientAvatar ?? false
                 self.preferredWeightUnit = WeightUnit(fromPreferredUnit: profile.preferredWeightUnit)
                 AppSettings.shared.updatePreferredUnit(self.preferredWeightUnit)
                 self.tagline = UserTagline.from(rawValue: profile.tagline)
@@ -74,12 +80,51 @@ final class ProfileSettingsViewModel: ObservableObject {
                 self.displayName = displayName ?? "Athlete"
                 self.email = email ?? ""
                 self.profileImageUrl = nil
+                self.selectedAvatar = .teal
                 self.preferredWeightUnit = .kilograms
                 AppSettings.shared.updatePreferredUnit(self.preferredWeightUnit)
                 self.tagline = .fitnessEnthusiast
                 self.hasLoadedProfile = true
             }
             self.isLoading = false
+        }
+    }
+    
+    func saveSelectedAvatar(for userId: String?, newAvatar: DefaultAvatar) {
+        let previousAvatar = selectedAvatar
+        selectedAvatar = newAvatar
+        errorMessage = nil
+        guard let userId = userId, !userId.isEmpty else { return }
+        userService.updateUserProfile(userId: userId, updates: ["selectedAvatar": newAvatar.rawValue]) { [weak self] success in
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                if !success {
+                    self.selectedAvatar = previousAvatar
+                    self.errorMessage = "Failed to update avatar. Please try again."
+                } else {
+                    print("✅ Avatar updated to: \(newAvatar.rawValue)")
+                    self.showSuccessToast("Avatar updated successfully")
+                }
+            }
+        }
+    }
+    
+    func saveUseGradientAvatar(for userId: String?, useGradient: Bool) {
+        let previousValue = useGradientAvatar
+        useGradientAvatar = useGradient
+        errorMessage = nil
+        guard let userId = userId, !userId.isEmpty else { return }
+        userService.updateUserProfile(userId: userId, updates: ["useGradientAvatar": useGradient]) { [weak self] success in
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                if !success {
+                    self.useGradientAvatar = previousValue
+                    self.errorMessage = "Failed to update avatar preference. Please try again."
+                } else {
+                    print("✅ Use gradient avatar preference updated to: \(useGradient)")
+                    self.showSuccessToast("Avatar preference updated")
+                }
+            }
         }
     }
 
@@ -94,6 +139,8 @@ final class ProfileSettingsViewModel: ObservableObject {
                 if !success {
                     self.tagline = previousTagline
                     self.errorMessage = "Failed to update tagline. Please try again."
+                } else {
+                    self.showSuccessToast("Tagline updated")
                 }
             }
         }
@@ -110,8 +157,10 @@ final class ProfileSettingsViewModel: ObservableObject {
                 if !success {
                     self.preferredWeightUnit = previousUnit
                     self.errorMessage = "Failed to update weight unit. Please try again."
+                } else {
+                    AppSettings.shared.updatePreferredUnit(self.preferredWeightUnit)
+                    self.showSuccessToast("Weight unit updated to \(newUnit.symbol)")
                 }
-                AppSettings.shared.updatePreferredUnit(self.preferredWeightUnit)
             }
         }
     }
@@ -135,6 +184,7 @@ final class ProfileSettingsViewModel: ObservableObject {
                     self.errorMessage = "Failed to update display name. Please try again."
                 } else {
                     print("✅ Display name updated to: \(trimmedName)")
+                    self.showSuccessToast("Display name updated")
                 }
             }
         }
@@ -148,5 +198,11 @@ final class ProfileSettingsViewModel: ObservableObject {
         }
         self.isGoogleConnected = providerData.contains(where: { $0.providerID == "google.com" })
         self.isAppleConnected = providerData.contains(where: { $0.providerID == "apple.com" })
+    }
+    
+    private func showSuccessToast(_ message: String) {
+        toastMessage = message
+        showToast = true
+        // Toast will auto-hide after 2.5 seconds (handled by ToastView)
     }
 }

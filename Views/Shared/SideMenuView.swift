@@ -41,11 +41,26 @@ struct SideMenuView: View {
     @Binding var isPresented: Bool
     let username: String
     let profileImageUrl: String?
+    let selectedAvatar: DefaultAvatar
+    let useGradientAvatar: Bool
     let userEmail: String?
     let onViewProfile: () -> Void
     let onSettings: () -> Void
     let onAbout: () -> Void
     let onLogOut: () -> Void
+    
+    init(isPresented: Binding<Bool>, username: String, profileImageUrl: String?, selectedAvatar: DefaultAvatar = .teal, useGradientAvatar: Bool = false, userEmail: String?, onViewProfile: @escaping () -> Void, onSettings: @escaping () -> Void = {}, onAbout: @escaping () -> Void = {}, onLogOut: @escaping () -> Void = {}) {
+        self._isPresented = isPresented
+        self.username = username
+        self.profileImageUrl = profileImageUrl
+        self.selectedAvatar = selectedAvatar
+        self.useGradientAvatar = useGradientAvatar
+        self.userEmail = userEmail
+        self.onViewProfile = onViewProfile
+        self.onSettings = onSettings
+        self.onAbout = onAbout
+        self.onLogOut = onLogOut
+    }
     
     var body: some View {
         Group {
@@ -67,29 +82,12 @@ struct SideMenuView: View {
                     VStack(alignment: .leading, spacing: 12) {
                         HStack {
                             // User avatar
-                            if let imageUrl = profileImageUrl,
-                               let url = URL(string: imageUrl) {
-                                AsyncImage(url: url) { image in
-                                    image.resizable()
-                                } placeholder: {
-                                    ProgressView()
-                                }
-                                .frame(width: 60, height: 60)
-                                .clipShape(Circle())
-                                .overlay(
-                                    Circle()
-                                        .stroke(AppColors.secondary, lineWidth: 2)
-                                )
-                            } else {
-                                Image(systemName: "person.crop.circle.fill")
-                                    .resizable()
-                                    .frame(width: 60, height: 60)
-                                    .foregroundColor(.gray)
-                                    .overlay(
-                                        Circle()
-                                            .stroke(AppColors.secondary, lineWidth: 2)
-                                    )
-                            }
+                            ProfileAvatarView(
+                                profilePic: profileImageUrl,
+                                selectedAvatar: selectedAvatar,
+                                useGradientAvatar: useGradientAvatar,
+                                size: 60
+                            )
                             
                             Spacer()
                             
@@ -224,6 +222,8 @@ struct SideMenuView: View {
         isPresented: .constant(true),
         username: "John Doe",
         profileImageUrl: nil,
+        selectedAvatar: .teal,
+        useGradientAvatar: false,
         userEmail: "john@example.com",
         onViewProfile: {},
         onSettings: {},

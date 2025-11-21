@@ -60,7 +60,9 @@ class SocialSearchViewModel: ObservableObject {
             guard let profile = userProfile else { return }
             
             var updatedFollowing = profile.following
-            updatedFollowing.append(userId)
+            if !updatedFollowing.contains(userId) {
+                updatedFollowing.append(userId)
+            }
             
             // Update current user's following list
             UserService.shared.updateUserProfile(userId: currentUserId, updates: ["following": updatedFollowing]) { success in
@@ -70,13 +72,22 @@ class SocialSearchViewModel: ObservableObject {
                         if let targetProfile = targetProfile {
                             // Real user - update followers array
                             var updatedFollowers = targetProfile.followers
-                            updatedFollowers.append(currentUserId)
+                            if !updatedFollowers.contains(currentUserId) {
+                                updatedFollowers.append(currentUserId)
+                            }
                             
-                            UserService.shared.updateUserProfile(userId: userId, updates: ["followers": updatedFollowers]) { success in
-                                print(success ? "✅ Successfully followed real user" : "❌ Failed to follow real user")
-                                if success {
+                            UserService.shared.updateUserProfile(userId: userId, updates: ["followers": updatedFollowers]) { followersUpdateSuccess in
+                                if followersUpdateSuccess {
+                                    print("✅ Successfully followed real user - both sides updated")
                                     DispatchQueue.main.async {
                                         self.onSocialStatsChanged?()
+                                    }
+                                } else {
+                                    print("❌ Failed to update target user's followers list")
+                                    // Rollback: remove from current user's following list
+                                    let rollbackFollowing = profile.following.filter { $0 != userId }
+                                    UserService.shared.updateUserProfile(userId: currentUserId, updates: ["following": rollbackFollowing]) { _ in
+                                        print("⚠️ Rolled back following update due to failed followers update")
                                     }
                                 }
                             }
@@ -113,11 +124,21 @@ class SocialSearchViewModel: ObservableObject {
                             // Real user - update followers array
                             let updatedFollowers = targetProfile.followers.filter { $0 != currentUserId }
                             
-                            UserService.shared.updateUserProfile(userId: userId, updates: ["followers": updatedFollowers]) { success in
-                                print(success ? "✅ Successfully unfollowed real user" : "❌ Failed to unfollow real user")
-                                if success {
+                            UserService.shared.updateUserProfile(userId: userId, updates: ["followers": updatedFollowers]) { followersUpdateSuccess in
+                                if followersUpdateSuccess {
+                                    print("✅ Successfully unfollowed real user - both sides updated")
                                     DispatchQueue.main.async {
                                         self.onSocialStatsChanged?()
+                                    }
+                                } else {
+                                    print("❌ Failed to update target user's followers list during unfollow")
+                                    // Rollback: add back to current user's following list
+                                    var rollbackFollowing = profile.following
+                                    if !rollbackFollowing.contains(userId) {
+                                        rollbackFollowing.append(userId)
+                                    }
+                                    UserService.shared.updateUserProfile(userId: currentUserId, updates: ["following": rollbackFollowing]) { _ in
+                                        print("⚠️ Rolled back following update due to failed followers update")
                                     }
                                 }
                             }

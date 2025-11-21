@@ -13,6 +13,8 @@ struct RecentActivityView: View {
     @Environment(\.colorScheme) var colorScheme
     @StateObject private var viewModel = RecentActivityViewModel()
     @State private var isLoading = true
+    @State private var selectedWorkoutId: String? = nil
+    @State private var showWorkoutDetail = false
     @Environment(\.dismiss) private var dismiss
     
     var body: some View {
@@ -93,14 +95,41 @@ struct RecentActivityView: View {
             } else {
                 ScrollView {
                     LazyVStack(spacing: 12) {
-                        ForEach(viewModel.recentWorkouts, id: \.id) { workout in
-                            RecentWorkoutCard(workout: workout)
+                        ForEach(viewModel.recentWorkouts, id: \.id) { workoutActivity in
+                            Button(action: {
+                                print("🔵 [RecentActivityView] Card tapped: \(workoutActivity.workoutTitle)")
+                                if let workoutId = workoutActivity.workoutId {
+                                    print("🔵 [RecentActivityView] Setting selectedWorkoutId: \(workoutId)")
+                                    selectedWorkoutId = workoutId
+                                    showWorkoutDetail = true
+                                    print("🔵 [RecentActivityView] showWorkoutDetail set to: true")
+                                } else {
+                                    print("⚠️ [RecentActivityView] workoutId is nil!")
+                                }
+                            }) {
+                                RecentWorkoutCardContent(workout: workoutActivity)
+                            }
+                            .buttonStyle(PlainButtonStyle())
                         }
                     }
                     .padding(.horizontal, 20)
                     .padding(.bottom, 20)
                 }
+                }
             }
+        }
+        .navigationDestination(isPresented: $showWorkoutDetail) {
+            if let workoutId = selectedWorkoutId,
+               let currentUserId = authViewModel.user?.uid {
+                WorkoutDetailViewWrapper(
+                    workoutId: workoutId,
+                    currentUserId: currentUserId
+                )
+                .environmentObject(authViewModel)
+                .onDisappear {
+                    selectedWorkoutId = nil
+                    showWorkoutDetail = false
+                }
             }
         }
         .onAppear {
@@ -115,7 +144,7 @@ struct RecentActivityView: View {
     }
 }
 
-struct RecentWorkoutCard: View {
+struct RecentWorkoutCardContent: View {
     let workout: RecentWorkoutActivity
     @Environment(\.colorScheme) var colorScheme
     
@@ -124,26 +153,11 @@ struct RecentWorkoutCard: View {
             // User info and timestamp
             HStack {
                 // User avatar
-                if let imageUrl = workout.userProfilePic,
-                   let url = URL(string: imageUrl) {
-                    AsyncImage(url: url) { image in
-                        image.resizable()
-                    } placeholder: {
-                        Circle()
-                            .fill(Color.gray.opacity(0.3))
-                    }
-                    .frame(width: 32, height: 32)
-                    .clipShape(Circle())
-                } else {
-                    Circle()
-                        .fill(Color.gray.opacity(0.3))
-                        .frame(width: 32, height: 32)
-                        .overlay(
-                            Image(systemName: "person.fill")
-                                .foregroundColor(.gray)
-                                .font(.caption)
-                        )
-                }
+                ProfileAvatarView(
+                    profilePic: workout.userProfilePic,
+                    selectedAvatar: .teal, // Default since we don't have selectedAvatar in RecentWorkoutActivity
+                    size: 32
+                )
                 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(workout.userDisplayName)
@@ -181,6 +195,63 @@ struct RecentWorkoutCard: View {
                         .stroke(AppColors.secondary.opacity(0.3), lineWidth: 1)
                 )
         )
+    }
+}
+
+struct WorkoutDetailViewWrapper: View {
+    let workoutId: String
+    let currentUserId: String
+    @State private var workout: Workout? = nil
+    @State private var isLoading = true
+    @EnvironmentObject var authViewModel: AuthViewModel
+    
+    var body: some View {
+        Group {
+            if isLoading {
+                VStack(spacing: 20) {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: AppColors.secondary))
+                        .scaleEffect(1.5)
+                    
+                    Text("Loading workout...")
+                        .foregroundColor(.white)
+                        .font(.headline)
+                }
+            } else if let workout = workout {
+                WorkoutDetailView(
+                    viewModel: WorkoutDetailViewModel(
+                        currentUserId: currentUserId,
+                        workout: workout
+                    )
+                )
+                .environmentObject(authViewModel)
+            } else {
+                VStack(spacing: 20) {
+                    Image(systemName: "exclamationmark.triangle")
+                        .foregroundColor(.red)
+                        .font(.system(size: 48))
+                    
+                    Text("Workout not found")
+                        .foregroundColor(.white)
+                        .font(.headline)
+                }
+            }
+        }
+        .onAppear {
+            print("📡 WorkoutDetailViewWrapper: Loading workout with ID: \(workoutId)")
+            WorkoutService.shared.fetchWorkout(workoutId: workoutId) { result in
+                DispatchQueue.main.async {
+                    isLoading = false
+                    switch result {
+                    case .success(let fetchedWorkout):
+                        print("✅ WorkoutDetailViewWrapper: Successfully loaded workout: \(fetchedWorkout.title)")
+                        workout = fetchedWorkout
+                    case .failure(let error):
+                        print("❌ WorkoutDetailViewWrapper: Error loading workout: \(error.localizedDescription)")
+                    }
+                }
+            }
+        }
     }
 }
 

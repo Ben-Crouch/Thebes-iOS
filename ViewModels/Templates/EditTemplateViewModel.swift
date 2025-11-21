@@ -129,9 +129,8 @@ class EditTemplateViewModel: ObservableObject, ExerciseHandlingProtocol {
 
                 dispatchGroup.notify(queue: .main) {
                     self.showToast = true
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                        self.showToast = false
-                    }
+                    // Toast will auto-hide after 2.5 seconds (handled by ToastView)
+                    // Call completion immediately - view will handle timing for dismiss
                     completion()
                 }
 

@@ -145,16 +145,18 @@ struct FriendsView: View {
             viewModel.onSocialStatsChanged = onSocialStatsChanged
         }
         .sheet(isPresented: $showUserProfile) {
-            UserProfileView(
-                userId: selectedUserId,
-                onSocialStatsChanged: {
-                    // Refresh friends list when user unfriends from profile
-                    if let userId = authViewModel.user?.uid {
-                        viewModel.fetchFriends(for: userId)
+            NavigationStack {
+                UserProfileView(
+                    userId: selectedUserId,
+                    onSocialStatsChanged: {
+                        // Refresh friends list when user unfriends from profile
+                        if let userId = authViewModel.user?.uid {
+                            viewModel.fetchFriends(for: userId)
+                        }
                     }
-                }
-            )
-            .environmentObject(authViewModel)
+                )
+                .environmentObject(authViewModel)
+            }
         }
     }
 }
@@ -179,26 +181,12 @@ struct FriendUserCard: View {
                     }
                     onViewProfile(user.uid)
                 }) {
-                    if let imageUrl = user.profilePic,
-                       let url = URL(string: imageUrl) {
-                        AsyncImage(url: url) { image in
-                            image.resizable()
-                        } placeholder: {
-                            Circle()
-                                .fill(Color.gray.opacity(0.3))
-                        }
-                        .frame(width: 50, height: 50)
-                        .clipShape(Circle())
-                    } else {
-                        Circle()
-                            .fill(Color.gray.opacity(0.3))
-                            .frame(width: 50, height: 50)
-                            .overlay(
-                                Image(systemName: "person.fill")
-                                    .foregroundColor(.gray)
-                                    .font(.title3)
-                            )
-                    }
+                    ProfileAvatarView(
+                        profilePic: user.profilePic,
+                        selectedAvatar: DefaultAvatar.from(rawValue: user.selectedAvatar),
+                        useGradientAvatar: user.useGradientAvatar ?? false,
+                        size: 50
+                    )
                 }
                 .buttonStyle(PlainButtonStyle())
                 

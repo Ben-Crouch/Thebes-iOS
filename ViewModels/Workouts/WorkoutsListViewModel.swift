@@ -10,6 +10,8 @@ import Foundation
 class WorkoutsListViewModel: ObservableObject {
     @Published var username: String = "test"
     @Published var profileImageUrl: String? = nil
+    @Published var selectedAvatar: DefaultAvatar = .teal
+    @Published var useGradientAvatar: Bool = false
     @Published var workoutCountLast30Days: Int = 0
     @Published var workouts: [Workout] = []
     @Published var canLoadMore: Bool = true
@@ -26,6 +28,8 @@ class WorkoutsListViewModel: ObservableObject {
                 guard let profile = userProfile else { return }
                 self.username = profile.displayName
                 self.profileImageUrl = profile.profilePic
+                self.selectedAvatar = DefaultAvatar.from(rawValue: profile.selectedAvatar)
+                self.useGradientAvatar = profile.useGradientAvatar ?? false
             }
         }
     }

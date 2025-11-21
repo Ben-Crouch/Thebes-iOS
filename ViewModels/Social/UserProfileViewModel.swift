@@ -43,24 +43,27 @@ class UserProfileViewModel: ObservableObject {
         // Reset the loading state
         isFollowingStatusLoaded = false
         
-        // Use the passed profile or fall back to the instance variable
-        let profileToCheck = targetProfile ?? userProfile
-        
-        if let profile = profileToCheck {
-            let isFollowing = profile.followers.contains(currentUserId)
-            print("🔍 UserProfileViewModel: Checking target user's followers list: \(profile.followers)")
-            print("🔍 UserProfileViewModel: Current user in followers: \(isFollowing)")
+        // We need to check the current user's following list, not the target user's followers
+        // Fetch the current user's profile to check their following list
+        UserService.shared.fetchUserProfile(userId: currentUserId) { currentUserProfile in
+            guard let currentProfile = currentUserProfile else {
+                print("🔍 UserProfileViewModel: Current user profile not found, defaulting to false")
+                DispatchQueue.main.async {
+                    self.isFollowingUser = false
+                    self.isFollowingStatusLoaded = true
+                }
+                return
+            }
+            
+            // Check if targetUserId is in the current user's following list
+            let isFollowing = currentProfile.following.contains(targetUserId)
+            print("🔍 UserProfileViewModel: Checking current user's following list: \(currentProfile.following)")
+            print("🔍 UserProfileViewModel: Target user in following list: \(isFollowing)")
             
             DispatchQueue.main.async {
                 self.isFollowingUser = isFollowing
                 self.isFollowingStatusLoaded = true
                 print("🔍 UserProfileViewModel: Following status set to: \(self.isFollowingUser)")
-            }
-        } else {
-            print("🔍 UserProfileViewModel: Target profile not available, defaulting to false")
-            DispatchQueue.main.async {
-                self.isFollowingUser = false
-                self.isFollowingStatusLoaded = true
             }
         }
     }
@@ -142,43 +145,70 @@ class UserProfileViewModel: ObservableObject {
             // Update current user's following list
             UserService.shared.updateUserProfile(userId: currentUserId, updates: ["following": updatedFollowing]) { success in
                 if success {
+                    print("✅ Updated current user's following list")
                     // Try to add current user to target user's followers list
                     UserService.shared.fetchUserProfile(userId: userId) { targetProfile in
                         if let targetProfile = targetProfile {
+                            print("✅ Fetched target user profile, current followers: \(targetProfile.followers)")
                             // Real user - update followers array
                             var updatedFollowers = targetProfile.followers
                             if !updatedFollowers.contains(currentUserId) {
                                 updatedFollowers.append(currentUserId)
+                                print("✅ Adding \(currentUserId) to target user's followers list")
+                            } else {
+                                print("⚠️ \(currentUserId) already in target user's followers list")
                             }
                             
-                            UserService.shared.updateUserProfile(userId: userId, updates: ["followers": updatedFollowers]) { _ in
+                            UserService.shared.updateUserProfile(userId: userId, updates: ["followers": updatedFollowers]) { followersUpdateSuccess in
                                 DispatchQueue.main.async {
-                                    // Update local profile
-                                    if var localProfile = self.userProfile {
-                                        localProfile.followers.append(currentUserId)
-                                        self.userProfile = localProfile
+                                    if followersUpdateSuccess {
+                                        // Update local profile
+                                        if var localProfile = self.userProfile {
+                                            if !localProfile.followers.contains(currentUserId) {
+                                                localProfile.followers.append(currentUserId)
+                                            }
+                                            self.userProfile = localProfile
+                                        }
+                                        // Update following status
+                                        self.isFollowingUser = true
+                                        // Trigger callback to refresh social stats
+                                        self.onSocialStatsChanged?()
+                                        completion(true)
+                                    } else {
+                                        print("❌ Failed to update target user's followers list")
+                                        // Rollback: remove from current user's following list
+                                        let rollbackFollowing = profile.following.filter { $0 != userId }
+                                        UserService.shared.updateUserProfile(userId: currentUserId, updates: ["following": rollbackFollowing]) { _ in
+                                            completion(false)
+                                        }
                                     }
-                                    // Update following status
-                                    self.isFollowingUser = true
-                                    // Trigger callback to refresh social stats
-                                    self.onSocialStatsChanged?()
-                                    completion(true)
                                 }
                             }
                         } else {
                             // Mock user - try to update followers array
-                            UserService.shared.updateMockUserProfile(userId: userId, updates: ["followers": [currentUserId]]) { _ in
+                            UserService.shared.updateMockUserProfile(userId: userId, updates: ["followers": [currentUserId]]) { mockUpdateSuccess in
                                 DispatchQueue.main.async {
-                                    // Update local profile
-                                    if var localProfile = self.userProfile {
-                                        localProfile.followers.append(currentUserId)
-                                        self.userProfile = localProfile
+                                    if mockUpdateSuccess {
+                                        // Update local profile
+                                        if var localProfile = self.userProfile {
+                                            if !localProfile.followers.contains(currentUserId) {
+                                                localProfile.followers.append(currentUserId)
+                                            }
+                                            self.userProfile = localProfile
+                                        }
+                                        // Update following status
+                                        self.isFollowingUser = true
+                                        // Trigger callback to refresh social stats
+                                        self.onSocialStatsChanged?()
+                                        completion(true)
+                                    } else {
+                                        print("❌ Failed to update mock user's followers list")
+                                        // Rollback: remove from current user's following list
+                                        let rollbackFollowing = profile.following.filter { $0 != userId }
+                                        UserService.shared.updateUserProfile(userId: currentUserId, updates: ["following": rollbackFollowing]) { _ in
+                                            completion(false)
+                                        }
                                     }
-                                    // Update following status
-                                    self.isFollowingUser = true
-                                    // Trigger callback to refresh social stats
-                                    self.onSocialStatsChanged?()
-                                    completion(true)
                                 }
                             }
                         }
@@ -208,18 +238,30 @@ class UserProfileViewModel: ObservableObject {
                             // Real user - update followers array
                             let updatedFollowers = targetProfile.followers.filter { $0 != currentUserId }
                             
-                            UserService.shared.updateUserProfile(userId: userId, updates: ["followers": updatedFollowers]) { _ in
+                            UserService.shared.updateUserProfile(userId: userId, updates: ["followers": updatedFollowers]) { followersUpdateSuccess in
                                 DispatchQueue.main.async {
-                                    // Update local profile
-                                    if var localProfile = self.userProfile {
-                                        localProfile.followers.removeAll { $0 == currentUserId }
-                                        self.userProfile = localProfile
+                                    if followersUpdateSuccess {
+                                        // Update local profile
+                                        if var localProfile = self.userProfile {
+                                            localProfile.followers.removeAll { $0 == currentUserId }
+                                            self.userProfile = localProfile
+                                        }
+                                        // Update following status
+                                        self.isFollowingUser = false
+                                        // Trigger callback to refresh social stats
+                                        self.onSocialStatsChanged?()
+                                        completion(true)
+                                    } else {
+                                        print("❌ Failed to update target user's followers list during unfollow")
+                                        // Rollback: add back to current user's following list
+                                        var rollbackFollowing = profile.following
+                                        if !rollbackFollowing.contains(userId) {
+                                            rollbackFollowing.append(userId)
+                                        }
+                                        UserService.shared.updateUserProfile(userId: currentUserId, updates: ["following": rollbackFollowing]) { _ in
+                                            completion(false)
+                                        }
                                     }
-                                    // Update following status
-                                    self.isFollowingUser = false
-                                    // Trigger callback to refresh social stats
-                                    self.onSocialStatsChanged?()
-                                    completion(true)
                                 }
                             }
                         } else {

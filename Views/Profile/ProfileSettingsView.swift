@@ -224,6 +224,67 @@ struct ProfileSettingsView: View {
                         }
                     }
                     
+                    settingsSection(title: "Profile Picture") {
+                        VStack(alignment: .leading, spacing: 16) {
+                            // Toggle to use gradient avatar instead of profile picture (only show if user has a profile pic)
+                            if let profilePic = settingsViewModel.profileImageUrl, !profilePic.isEmpty {
+                                Toggle(isOn: Binding(
+                                    get: { settingsViewModel.useGradientAvatar },
+                                    set: { newValue in
+                                        settingsViewModel.saveUseGradientAvatar(for: authViewModel.user?.uid, useGradient: newValue)
+                                    }
+                                )) {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("Use Gradient Avatar")
+                                            .foregroundColor(.white)
+                                        Text("Use your selected gradient avatar instead of your profile picture")
+                                            .font(.caption)
+                                            .foregroundColor(.white.opacity(0.6))
+                                    }
+                                }
+                                .toggleStyle(SwitchToggleStyle(tint: AppColors.secondary))
+                                
+                                divider
+                            }
+                            
+                            Text("Choose a default avatar")
+                                .font(.subheadline)
+                                .foregroundColor(.white.opacity(0.7))
+                                .padding(.bottom, 8)
+                            
+                            // Avatar grid
+                            LazyVGrid(columns: [
+                                GridItem(.flexible()),
+                                GridItem(.flexible()),
+                                GridItem(.flexible()),
+                                GridItem(.flexible())
+                            ], spacing: 16) {
+                                ForEach(DefaultAvatar.allCases) { avatar in
+                                    Button(action: {
+                                        settingsViewModel.saveSelectedAvatar(for: authViewModel.user?.uid, newAvatar: avatar)
+                                    }) {
+                                        ZStack {
+                                            DefaultAvatarView(avatar: avatar, size: 60)
+                                            
+                                            // Selected indicator
+                                            if settingsViewModel.selectedAvatar == avatar {
+                                                Circle()
+                                                    .stroke(AppColors.secondary, lineWidth: 3)
+                                                    .frame(width: 70, height: 70)
+                                            }
+                                        }
+                                    }
+                                    .buttonStyle(PlainButtonStyle())
+                                }
+                            }
+                            
+                            Text("Selected: \(settingsViewModel.selectedAvatar.name)")
+                                .font(.caption)
+                                .foregroundColor(.white.opacity(0.5))
+                                .padding(.top, 8)
+                        }
+                    }
+                    
                     settingsSection(title: "Connected Accounts") {
                         VStack(alignment: .leading, spacing: 14) {
                             connectedAccountRow(
@@ -235,6 +296,23 @@ struct ProfileSettingsView: View {
                                 service: "Google",
                                 status: settingsViewModel.isGoogleConnected ? "Connected" : "Not Connected"
                             )
+                        }
+                    }
+                    
+                    // ⚠️ TEMPORARY: Sample Data Helper for Screenshots
+                    // Remove this section before production release
+                    settingsSection(title: "Developer Tools") {
+                        VStack(alignment: .leading, spacing: 16) {
+                            settingsRow(title: "Populate Sample Data", description: "Add sample workouts for screenshots") {
+                                Button(action: {
+                                    populateSampleData()
+                                }) {
+                                    Text("Populate")
+                                        .font(.footnote)
+                                        .fontWeight(.semibold)
+                                        .foregroundColor(AppColors.secondary)
+                                }
+                            }
                         }
                     }
                     
@@ -271,9 +349,21 @@ struct ProfileSettingsView: View {
                 .padding(.horizontal, 20)
                 .padding(.vertical, 24)
             }
+            
+            // Toast overlay
+            ToastView(message: settingsViewModel.toastMessage, isShowing: $settingsViewModel.showToast)
+                .zIndex(1)
         }
-        .navigationTitle("Settings")
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                Text("Settings")
+                    .font(.title2)
+                    .fontWeight(.bold)
+                    .foregroundColor(.white)
+            }
+        }
+        .toolbarBackground(.hidden, for: .navigationBar)
+        .toolbarColorScheme(.dark, for: .navigationBar)
         .onAppear {
             settingsViewModel.loadProfile(
                 for: authViewModel.user?.uid,
@@ -553,28 +643,12 @@ struct ProfileSettingsView: View {
                         .fill(Color.white.opacity(0.08))
                         .frame(width: 80, height: 80)
                     
-                    if let imageUrl = settingsViewModel.profileImageUrl,
-                       let url = URL(string: imageUrl) {
-                        AsyncImage(url: url) { image in
-                            image.resizable()
-                                .scaledToFill()
-                        } placeholder: {
-                            ProgressView()
-                                .progressViewStyle(CircularProgressViewStyle(tint: AppColors.secondary))
-                        }
-                        .frame(width: 80, height: 80)
-                        .clipShape(Circle())
-                        .overlay(
-                            Circle()
-                                .stroke(AppColors.secondary.opacity(0.4), lineWidth: 2)
-                        )
-                    } else {
-                        Image(systemName: "person.circle.fill")
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 70, height: 70)
-                            .foregroundColor(.white.opacity(0.7))
-                    }
+                    ProfileAvatarView(
+                        profilePic: settingsViewModel.profileImageUrl,
+                        selectedAvatar: settingsViewModel.selectedAvatar,
+                        useGradientAvatar: settingsViewModel.useGradientAvatar,
+                        size: 80
+                    )
                 }
                 
                 Text(settingsViewModel.displayName.isEmpty ? "Athlete" : settingsViewModel.displayName)
@@ -682,6 +756,30 @@ struct ProfileSettingsView: View {
             .background(AppColors.secondary.opacity(0.15))
             .foregroundColor(AppColors.secondary)
             .clipShape(Capsule())
+    }
+    
+    // ⚠️ TEMPORARY: Sample Data Helper
+    // Remove this function before production release
+    private func populateSampleData() {
+        guard let userId = authViewModel.user?.uid else {
+            print("❌ No user ID available")
+            return
+        }
+        
+        print("📊 Starting sample data population...")
+        SampleDataHelper.shared.populateSampleData(for: userId) { success in
+            DispatchQueue.main.async {
+                if success {
+                    resetAlertTitle = "Sample Data Added"
+                    resetAlertMessage = "4 sample workouts with exercises have been added to your account."
+                    showResetResult = true
+                } else {
+                    resetAlertTitle = "Error"
+                    resetAlertMessage = "Some sample data failed to populate. Please try again."
+                    showResetResult = true
+                }
+            }
+        }
     }
     
     private func handleSignOut() {

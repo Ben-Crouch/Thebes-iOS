@@ -9,6 +9,8 @@ import Foundation
 
 struct RecentWorkoutActivity: Identifiable {
     let id: String
+    let workoutId: String?
+    let userId: String
     let workoutTitle: String
     let workoutDate: Date
     let userDisplayName: String

@@ -17,6 +17,9 @@ class WorkoutLogViewModel: ObservableObject, ExerciseHandlingProtocol {
     @Published var showSaveConfirmation = false
     @Published var showRestTime: Bool = false // ✅ Tracks Rest Time visibility
     
+    // Callback for when save completes (used to delay dismiss until after toast is visible)
+    var onSaveComplete: (() -> Void)?
+    
     private let userId: String
     
     init(userId: String, workout: Workout? = nil) {
@@ -124,9 +127,9 @@ class WorkoutLogViewModel: ObservableObject, ExerciseHandlingProtocol {
                     self.resetFields()
                     DispatchQueue.main.async {
                         self.showToast = true
-                    }
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                        self.showToast = false
+                        // Toast will auto-hide after 2.5 seconds (handled by ToastView)
+                        // Use this completion to signal view can dismiss after toast is visible
+                        self.onSaveComplete?()
                     }
                 }
             case .failure(let error):

@@ -10,6 +10,7 @@ import SwiftUI
 struct ToastView: View {
     let message: String
     @Binding var isShowing: Bool
+    var duration: Double = 2.5 // Default duration in seconds
     
     var body: some View {
         VStack {
@@ -17,14 +18,28 @@ struct ToastView: View {
                 Text(message)
                     .font(.headline)
                     .foregroundColor(.white)
-                    .padding()
-                    .background(AppColors.secondary)
-                    .cornerRadius(10)
-                    .padding(.top, 50) // ✅ Move it down slightly from the top
-                    .transition(.move(edge: .top))
-                    .animation(.easeInOut, value: isShowing)
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 14)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(AppColors.secondary)
+                            .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 4)
+                    )
+                    .padding(.top, 50)
+                    .padding(.horizontal, 20)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .animation(.spring(response: 0.4, dampingFraction: 0.8), value: isShowing)
+                    .onAppear {
+                        // Auto-hide after duration
+                        DispatchQueue.main.asyncAfter(deadline: .now() + duration) {
+                            withAnimation {
+                                isShowing = false
+                            }
+                        }
+                    }
             }
-            Spacer() // ✅ Pushes content to the bottom
+            Spacer()
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 }

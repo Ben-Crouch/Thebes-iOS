@@ -503,6 +503,8 @@ struct TrackerView: View {
                 isPresented: $showSideMenu,
                 username: viewModel.displayName,
                 profileImageUrl: viewModel.profileImageUrl,
+                selectedAvatar: viewModel.selectedAvatar,
+                useGradientAvatar: viewModel.useGradientAvatar,
                 userEmail: authViewModel.user?.email,
                 onViewProfile: {
                     // TODO: Navigate to user's own profile

@@ -60,10 +60,14 @@ struct TemplateLogView: View {
 
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button(action: {
-                    viewModel.saveTemplate()
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                        presentationMode.wrappedValue.dismiss()
+                    // Set callback to dismiss after toast has been visible
+                    viewModel.onSaveComplete = {
+                        // Wait for toast to show and be visible (3 seconds total: animation + display time)
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+                            presentationMode.wrappedValue.dismiss()
+                        }
                     }
+                    viewModel.saveTemplate()
                 }) {
                     Text("Save")
                         .fontWeight(.bold)

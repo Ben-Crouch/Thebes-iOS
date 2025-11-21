@@ -13,6 +13,8 @@ struct ChallengeView: View {
     @State private var showSideMenu = false
     @State private var username: String = "User"
     @State private var profileImageUrl: String? = nil
+    @State private var selectedAvatar: DefaultAvatar = .teal
+    @State private var useGradientAvatar: Bool = false
     @State private var showSettingsView = false
     
     var body: some View {
@@ -56,6 +58,8 @@ struct ChallengeView: View {
                 isPresented: $showSideMenu,
                 username: username,
                 profileImageUrl: profileImageUrl,
+                selectedAvatar: selectedAvatar,
+                useGradientAvatar: useGradientAvatar,
                 userEmail: authViewModel.user?.email,
                 onViewProfile: {
                     // TODO: Navigate to user's own profile
@@ -83,6 +87,8 @@ struct ChallengeView: View {
                         if let profile = userProfile {
                             self.username = profile.displayName
                             self.profileImageUrl = profile.profilePic
+                            self.selectedAvatar = DefaultAvatar.from(rawValue: profile.selectedAvatar)
+                            self.useGradientAvatar = profile.useGradientAvatar ?? false
                         }
                     }
                 }

@@ -34,6 +34,46 @@ class WorkoutService {
         }
     }
     
+    /// Fetches a single workout by its ID
+    func fetchWorkout(workoutId: String, completion: @escaping (Result<Workout, Error>) -> Void) {
+        guard !workoutId.isEmpty else {
+            print("❌ fetchWorkout called with empty workoutId")
+            completion(.failure(NSError(domain: "WorkoutService", code: -1, userInfo: [NSLocalizedDescriptionKey: "Workout ID cannot be empty"])))
+            return
+        }
+        
+        print("📡 Fetching workout with ID: \(workoutId)")
+        db.collection("workouts").document(workoutId).getDocument { document, error in
+            if let error = error {
+                print("❌ Error fetching workout document: \(error.localizedDescription)")
+                let nsError = error as NSError
+                print("   Error domain: \(nsError.domain)")
+                print("   Error code: \(nsError.code)")
+                if !nsError.userInfo.isEmpty {
+                    print("   Error userInfo: \(nsError.userInfo)")
+                }
+                completion(.failure(error))
+                return
+            }
+            
+            guard let document = document, document.exists else {
+                print("❌ Workout document does not exist for ID: \(workoutId)")
+                completion(.failure(NSError(domain: "WorkoutService", code: -1, userInfo: [NSLocalizedDescriptionKey: "Workout not found"])))
+                return
+            }
+            
+            print("✅ Workout document exists, decoding...")
+            do {
+                let workout = try document.data(as: Workout.self)
+                print("✅ Successfully decoded workout: \(workout.title) (ID: \(workout.id ?? "nil"))")
+                completion(.success(workout))
+            } catch {
+                print("❌ Error decoding workout: \(error.localizedDescription)")
+                completion(.failure(error))
+            }
+        }
+    }
+    
     func fetchWorkouts(for userId: String, completion: @escaping (Result<[Workout], Error>) -> Void) {
         // TODO: REVERT FOR LAUNCH - Currently fetching 1 year for development
         // Change back to .limit(to: 5) and remove date filter for production

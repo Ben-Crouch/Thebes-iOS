@@ -149,17 +149,19 @@ struct FollowersView: View {
             viewModel.onSocialStatsChanged = onSocialStatsChanged
         }
         .sheet(isPresented: $showUserProfile) {
-            UserProfileView(
-                userId: selectedUserId,
-                onSocialStatsChanged: {
-                    // Refresh followers list and following status when user follows/unfollows from profile
-                    if let userId = authViewModel.user?.uid {
-                        viewModel.fetchFollowers(for: userId)
-                        loadCurrentUserFollowing()
+            NavigationStack {
+                UserProfileView(
+                    userId: selectedUserId,
+                    onSocialStatsChanged: {
+                        // Refresh followers list and following status when user follows/unfollows from profile
+                        if let userId = authViewModel.user?.uid {
+                            viewModel.fetchFollowers(for: userId)
+                            loadCurrentUserFollowing()
+                        }
                     }
-                }
-            )
-            .environmentObject(authViewModel)
+                )
+                .environmentObject(authViewModel)
+            }
         }
     }
     
@@ -193,26 +195,12 @@ struct FollowerUserCard: View {
                 }
                 onViewProfile(user.uid)
             }) {
-                if let imageUrl = user.profilePic,
-                   let url = URL(string: imageUrl) {
-                    AsyncImage(url: url) { image in
-                        image.resizable()
-                    } placeholder: {
-                        Circle()
-                            .fill(Color.gray.opacity(0.3))
-                    }
-                    .frame(width: 50, height: 50)
-                    .clipShape(Circle())
-                } else {
-                    Circle()
-                        .fill(Color.gray.opacity(0.3))
-                        .frame(width: 50, height: 50)
-                        .overlay(
-                            Image(systemName: "person.fill")
-                                .foregroundColor(.gray)
-                                .font(.title3)
-                        )
-                }
+                ProfileAvatarView(
+                    profilePic: user.profilePic,
+                    selectedAvatar: DefaultAvatar.from(rawValue: user.selectedAvatar),
+                    useGradientAvatar: user.useGradientAvatar ?? false,
+                    size: 50
+                )
             }
             .buttonStyle(PlainButtonStyle())
             

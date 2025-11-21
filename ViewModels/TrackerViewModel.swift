@@ -15,6 +15,8 @@ class TrackerViewModel: ObservableObject {
     @Published var favoritedExercise: String? = nil
     @Published var displayName: String = "User"
     @Published var profileImageUrl: String? = nil
+    @Published var selectedAvatar: DefaultAvatar = .teal
+    @Published var useGradientAvatar: Bool = false
     @Published var preferredWeightUnit: WeightUnit = .kilograms
     @Published var selectedTimeRange: String = "3M"
     @Published var trackedExercises: [Exercise] = []
@@ -53,6 +55,8 @@ class TrackerViewModel: ObservableObject {
             DispatchQueue.main.async {
                 if let profile = userProfile {
                     self.profileImageUrl = profile.profilePic
+                    self.selectedAvatar = DefaultAvatar.from(rawValue: profile.selectedAvatar)
+                    self.useGradientAvatar = profile.useGradientAvatar ?? false
                 }
             }
         }
