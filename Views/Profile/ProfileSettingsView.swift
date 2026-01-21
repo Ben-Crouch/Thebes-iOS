@@ -226,27 +226,6 @@ struct ProfileSettingsView: View {
                     
                     settingsSection(title: "Profile Picture") {
                         VStack(alignment: .leading, spacing: 16) {
-                            // Toggle to use gradient avatar instead of profile picture (only show if user has a profile pic)
-                            if let profilePic = settingsViewModel.profileImageUrl, !profilePic.isEmpty {
-                                Toggle(isOn: Binding(
-                                    get: { settingsViewModel.useGradientAvatar },
-                                    set: { newValue in
-                                        settingsViewModel.saveUseGradientAvatar(for: authViewModel.user?.uid, useGradient: newValue)
-                                    }
-                                )) {
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text("Use Gradient Avatar")
-                                            .foregroundColor(.white)
-                                        Text("Use your selected gradient avatar instead of your profile picture")
-                                            .font(.caption)
-                                            .foregroundColor(.white.opacity(0.6))
-                                    }
-                                }
-                                .toggleStyle(SwitchToggleStyle(tint: AppColors.secondary))
-                                
-                                divider
-                            }
-                            
                             Text("Choose a default avatar")
                                 .font(.subheadline)
                                 .foregroundColor(.white.opacity(0.7))
@@ -262,6 +241,12 @@ struct ProfileSettingsView: View {
                                 ForEach(DefaultAvatar.allCases) { avatar in
                                     Button(action: {
                                         settingsViewModel.saveSelectedAvatar(for: authViewModel.user?.uid, newAvatar: avatar)
+                                        // Automatically enable gradient avatar when user selects one
+                                        if let profilePic = settingsViewModel.profileImageUrl, !profilePic.isEmpty {
+                                            if !settingsViewModel.useGradientAvatar {
+                                                settingsViewModel.saveUseGradientAvatar(for: authViewModel.user?.uid, useGradient: true)
+                                            }
+                                        }
                                     }) {
                                         ZStack {
                                             DefaultAvatarView(avatar: avatar, size: 60)
@@ -282,6 +267,27 @@ struct ProfileSettingsView: View {
                                 .font(.caption)
                                 .foregroundColor(.white.opacity(0.5))
                                 .padding(.top, 8)
+                            
+                            // Toggle to switch between gradient avatar and profile picture (only show if user has a profile pic)
+                            if let profilePic = settingsViewModel.profileImageUrl, !profilePic.isEmpty {
+                                divider
+                                
+                                Toggle(isOn: Binding(
+                                    get: { settingsViewModel.useGradientAvatar },
+                                    set: { newValue in
+                                        settingsViewModel.saveUseGradientAvatar(for: authViewModel.user?.uid, useGradient: newValue)
+                                    }
+                                )) {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(settingsViewModel.useGradientAvatar ? "Using Gradient Avatar" : "Using Profile Picture")
+                                            .foregroundColor(.white)
+                                        Text(settingsViewModel.useGradientAvatar ? "Switch back to your profile picture" : "Switch to your selected gradient avatar")
+                                            .font(.caption)
+                                            .foregroundColor(.white.opacity(0.6))
+                                    }
+                                }
+                                .toggleStyle(SwitchToggleStyle(tint: AppColors.secondary))
+                            }
                         }
                     }
                     

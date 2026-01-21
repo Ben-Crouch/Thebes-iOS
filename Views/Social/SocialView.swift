@@ -78,7 +78,7 @@ struct SocialView: View {
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
-            .edgesIgnoringSafeArea(.all)
+            .ignoresSafeArea(.all)
             
             VStack(spacing: 0) {
                 // Top Navigation

@@ -23,7 +23,7 @@ struct TrackerView: View {
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
-            .edgesIgnoringSafeArea(.all)
+            .ignoresSafeArea(.all)
             
             ScrollView {
                 VStack(spacing: 24) {

@@ -31,6 +31,9 @@ class ExerciseService {
                 return data
             }
         ]
+        if let order = exercise.order {
+            exerciseData["order"] = order
+        }
         if let date = exercise.date {
             exerciseData["date"] = Timestamp(date: date)
         }
@@ -71,6 +74,9 @@ class ExerciseService {
                 return data
             }
         ]
+        if let order = exercise.order {
+            updateData["order"] = order
+        }
 
         if let workoutId = exercise.workoutId {
             updateData["workoutId"] = workoutId
@@ -95,6 +101,7 @@ class ExerciseService {
         db.collection("exercises")
             .whereField("userId", isEqualTo: userId)
             .whereField("workoutId", isEqualTo: workoutId)
+            .order(by: "order")
             .getDocuments { snapshot, error in
                 if let error = error {
                     completion(.failure(error))
@@ -102,7 +109,10 @@ class ExerciseService {
                     let exercises = snapshot?.documents.compactMap { doc in
                         try? doc.data(as: Exercise.self)
                     } ?? []
-                    completion(.success(exercises))
+                    let sortedExercises = exercises.sorted { (lhs, rhs) in
+                        (lhs.order ?? Int.max) < (rhs.order ?? Int.max)
+                    }
+                    completion(.success(sortedExercises))
                 }
             }
     }
@@ -112,6 +122,27 @@ class ExerciseService {
         db.collection("exercises")
             .whereField("userId", isEqualTo: userId)
             .whereField("templateId", isEqualTo: templateId)
+            .order(by: "order")
+            .getDocuments { snapshot, error in
+                if let error = error {
+                    completion(.failure(error))
+                } else {
+                    let exercises = snapshot?.documents.compactMap { doc in
+                        try? doc.data(as: Exercise.self)
+                    } ?? []
+                    let sortedExercises = exercises.sorted { (lhs, rhs) in
+                        (lhs.order ?? Int.max) < (rhs.order ?? Int.max)
+                    }
+                    completion(.success(sortedExercises))
+                }
+            }
+    }
+
+    func fetchExercisesForUserSince(userId: String, startDate: Date, completion: @escaping (Result<[Exercise], Error>) -> Void) {
+        let startTimestamp = Timestamp(date: startDate)
+        db.collection("exercises")
+            .whereField("userId", isEqualTo: userId)
+            .whereField("date", isGreaterThanOrEqualTo: startTimestamp)
             .getDocuments { snapshot, error in
                 if let error = error {
                     completion(.failure(error))

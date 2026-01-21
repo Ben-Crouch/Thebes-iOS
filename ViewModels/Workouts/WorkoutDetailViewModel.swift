@@ -122,14 +122,15 @@ class WorkoutDetailViewModel: ObservableObject {
     private func saveExercises(for templateId: String, completion: @escaping () -> Void) {
         let dispatchGroup = DispatchGroup()
 
-        for exercise in exercises {
+        for (index, exercise) in exercises.enumerated() {
             dispatchGroup.enter()
 
             let exerciseToSave = Exercise(
                 templateId: templateId,
                 userId: currentUserId,
                 name: exercise.name,
-                sets: exercise.sets
+                sets: exercise.sets,
+                order: index
             )
 
             ExerciseService.shared.saveExercise(exercise: exerciseToSave) { result in

@@ -107,6 +107,7 @@ struct MainTabView: View {
                     .tag(4)
                 }
                 .accentColor(AppColors.secondary)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 }

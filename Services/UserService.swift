@@ -16,7 +16,8 @@ class UserService {
     /// - Parameters:
     ///   - user: The Firebase Auth user
     ///   - displayName: Optional display name (e.g., from Apple Sign-In fullName). If nil, uses user.displayName or "Anonymous"
-    func createUserProfile(user: User, displayName: String? = nil) {
+    ///   - completion: Optional completion handler called with success status
+    func createUserProfile(user: User, displayName: String? = nil, completion: ((Bool) -> Void)? = nil) {
         let userDoc = usersCollection.document(user.uid)
         
         print("📝 createUserProfile called for user: \(user.uid)")
@@ -76,9 +77,11 @@ class UserService {
             userDoc.setData(userData, merge: true) { error in
                 if let error = error {
                     print("❌ Error saving user profile: \(error.localizedDescription)")
+                    completion?(false)
                 } else {
                     print("✅ User profile created/updated successfully in Firestore")
                     print("   Final display name: \(finalDisplayName)")
+                    completion?(true)
                 }
             }
         }

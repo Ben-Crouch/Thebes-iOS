@@ -49,42 +49,46 @@ class AuthViewModel: ObservableObject {
             }
 
             if let user = result?.user {
-                // ✅ Send verification email
-                user.sendEmailVerification { error in
-                    if let error = error {
-                        completion(.failure(error))
-                        return
+                // ✅ Create user profile in Firestore FIRST (while user is still authenticated)
+                UserService.shared.createUserProfile(user: user) { success in
+                    if !success {
+                        print("⚠️ Warning: User profile creation may have failed, but continuing with sign-up flow")
                     }
-
-                    // ✅ Show toast for email verification
-                    DispatchQueue.main.async {
-                        self.toastMessage = "A verification email has been sent. Please check your inbox."
-                        self.showToast = true
-
-                        // ✅ Hide toast after 3 seconds
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-                            self.showToast = false
+                    
+                    // ✅ Send verification email
+                    user.sendEmailVerification { error in
+                        if let error = error {
+                            print("⚠️ Error sending verification email: \(error.localizedDescription)")
+                            // Don't fail sign-up if email verification fails, but log it
                         }
+
+                        // ✅ Show toast for email verification
+                        DispatchQueue.main.async {
+                            self.toastMessage = "A verification email has been sent. Please check your inbox."
+                            self.showToast = true
+
+                            // ✅ Hide toast after 3 seconds
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                                self.showToast = false
+                            }
+                        }
+
+                        // ✅ Immediately remove user from state to prevent UI flashing
+                        DispatchQueue.main.async {
+                            self.user = nil
+                            self.isEmailVerified = false
+                        }
+
+                        // ✅ Force sign-out after registration
+                        do {
+                            try Auth.auth().signOut()
+                            print("✅ Successfully signed out after registration")
+                        } catch {
+                            print("❌ Error signing out after sign-up: \(error.localizedDescription)")
+                        }
+
+                        completion(.success(())) // ✅ Return success without logging in
                     }
-
-                    // ✅ Save user profile in Firestore
-                    UserService.shared.createUserProfile(user: user)
-
-                    // ✅ Immediately remove user from state to prevent UI flashing
-                    DispatchQueue.main.async {
-                        self.user = nil
-                        self.isEmailVerified = false
-                    }
-
-                    // ✅ Force sign-out after registration
-                    do {
-                        try Auth.auth().signOut()
-                        print("✅ Successfully signed out after registration")
-                    } catch {
-                        print("❌ Error signing out after sign-up: \(error.localizedDescription)")
-                    }
-
-                    completion(.success(())) // ✅ Return success without logging in
                 }
             }
         }
@@ -114,12 +118,26 @@ class AuthViewModel: ObservableObject {
                     print("📩 Email Verified Status AFTER reload: \(user.isEmailVerified)")
 
                     if user.isEmailVerified {
-                        DispatchQueue.main.async {
-                            self.user = user
-                            self.isEmailVerified = true
+                        // ✅ Ensure user profile exists in Firestore (create if missing)
+                        UserService.shared.fetchUserProfile(userId: user.uid) { profile in
+                            if profile == nil {
+                                print("⚠️ User profile not found in Firestore, creating now...")
+                                UserService.shared.createUserProfile(user: user) { success in
+                                    if success {
+                                        print("✅ User profile created successfully")
+                                    } else {
+                                        print("⚠️ Warning: Failed to create user profile, but continuing with sign-in")
+                                    }
+                                }
+                            }
+                            
+                            DispatchQueue.main.async {
+                                self.user = user
+                                self.isEmailVerified = true
+                            }
+                            print("✅ Login successful!")
+                            completion(.success(user))
                         }
-                        print("✅ Login successful!")
-                        completion(.success(user))
                     } else {
                         // ✅ Show toast if email is not verified
                         DispatchQueue.main.async {
@@ -352,12 +370,23 @@ class AuthViewModel: ObservableObject {
                     print("❌ Firebase auth error: \(error.localizedDescription)")
                     completion(.failure(error))
                 } else if let user = result?.user {
-                    DispatchQueue.main.async {
-                        self.user = user
-                        self.isEmailVerified = user.isEmailVerified
-                        UserService.shared.createUserProfile(user: user)
+                    // Google accounts are always verified
+                    print("✅ Google Sign-In successful! User ID: \(user.uid)")
+                    
+                    // Ensure user profile exists in Firestore
+                    UserService.shared.createUserProfile(user: user) { success in
+                        if success {
+                            print("✅ User profile created/updated successfully")
+                        } else {
+                            print("⚠️ Warning: Failed to create user profile, but continuing with sign-in")
+                        }
+                        
+                        DispatchQueue.main.async {
+                            self.user = user
+                            self.isEmailVerified = true // Google accounts are always verified
+                        }
+                        completion(.success(user))
                     }
-                    completion(.success(user))
                 }
             }
         }
@@ -446,12 +475,20 @@ class AuthViewModel: ObservableObject {
                     }
                 }
                 
-                DispatchQueue.main.async {
-                    self?.user = user
-                    self?.isEmailVerified = true // Apple accounts are always verified
-                    UserService.shared.createUserProfile(user: user, displayName: displayName)
+                // Ensure user profile exists in Firestore
+                UserService.shared.createUserProfile(user: user, displayName: displayName) { success in
+                    if success {
+                        print("✅ User profile created/updated successfully")
+                    } else {
+                        print("⚠️ Warning: Failed to create user profile, but continuing with sign-in")
+                    }
+                    
+                    DispatchQueue.main.async {
+                        self?.user = user
+                        self?.isEmailVerified = true // Apple accounts are always verified
+                    }
+                    completion(.success(user))
                 }
-                completion(.success(user))
             } else {
                 print("❌ No user returned from Firebase")
                 completion(.failure(NSError(domain: "AppleSignIn", code: -1, userInfo: [NSLocalizedDescriptionKey: "No user returned from Firebase"])))

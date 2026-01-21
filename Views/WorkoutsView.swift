@@ -21,7 +21,7 @@ struct WorkoutsView: View {
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
-            .edgesIgnoringSafeArea(.all)
+            .ignoresSafeArea(.all)
             
             ScrollView {
                 VStack(spacing: 24) {
@@ -125,16 +125,16 @@ struct WorkoutHeaderView: View {
                 )
                 
                 StatItem(
-                    value: "7",
-                    label: "Streak",
-                    icon: "flame.fill",
+                    value: String(format: "%.1f", viewModel.avgWorkoutsPerWeek),
+                    label: "Avg/Week",
+                    icon: "chart.line.uptrend.xyaxis",
                     color: .orange
                 )
                 
                 StatItem(
-                    value: "42",
-                    label: "Total",
-                    icon: "trophy.fill",
+                    value: "\(viewModel.totalSetsLast30Days)",
+                    label: "Sets (30d)",
+                    icon: "list.bullet.rectangle",
                     color: .yellow
                 )
             }

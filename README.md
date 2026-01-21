@@ -22,7 +22,10 @@ Thebes/
 │   ├── Exercise.swift          # Exercise within workout
 │   ├── SetData.swift           # Individual set data
 │   ├── Template.swift          # Workout template
-│   └── MockUserProfile.swift   # Simplified mock user for testing
+│   ├── MockUserProfile.swift   # Simplified mock user for testing
+│   ├── DefaultAvatar.swift    # Gradient avatar enum and view
+│   ├── WeightUnit.swift       # Weight unit enum with conversion
+│   └── UserTagline.swift      # Profile tagline options
 ├── Services/
 │   ├── AuthService.swift       # Firebase Authentication
 │   ├── FirestoreManager.swift  # Centralized Firestore access
@@ -45,14 +48,19 @@ Thebes/
 ├── Views/
 │   ├── Auth/
 │   │   ├── LoginView.swift     # User authentication
-│   │   └── SignupView.swift    # User registration
+│   │   └── SignupView.swift    # User registration with password strength
+│   ├── Profile/
+│   │   └── ProfileSettingsView.swift # User settings and preferences
 │   ├── HomeView.swift          # Main dashboard
-│   ├── ProfileView.swift       # Current user profile
 │   ├── TrackerView.swift       # Workout tracking interface
 │   ├── WorkoutsView.swift      # Workout management
 │   ├── Shared/
 │   │   ├── MainTabView.swift   # Main tab navigation
-│   │   └── TopNavBarView.swift # Custom navigation header
+│   │   ├── TopNavBarView.swift # Custom navigation header
+│   │   ├── ProfileAvatarView.swift # Reusable avatar component
+│   │   ├── SideMenuView.swift  # Side menu navigation
+│   │   ├── ToastView.swift    # Toast notification component
+│   │   └── SafariView.swift  # Web view for legal documents
 │   └── Social/
 │       ├── SocialView.swift         # Main social hub
 │       ├── SocialSearchView.swift   # User search interface
@@ -62,11 +70,13 @@ Thebes/
 │       ├── UserProfileView.swift    # Individual user profiles
 │       └── RecentActivityView.swift # Recent workouts feed
 └── Utilities/
-    ├── Colors.swift           # App color palette
-    ├── AppSettings.swift      # App configuration
+    ├── Colors.swift           # App color palette with gradient support
+    ├── AppSettings.swift      # App configuration (weight units, etc.)
     ├── ConversionUtils.swift  # Unit conversion utilities
     ├── MockData.swift         # Mock data generators
-    └── PlaceholderModifier.swift # Custom text field styling
+    ├── PlaceholderModifier.swift # Custom text field styling
+    ├── SampleDataHelper.swift # Helper for populating test data
+    └── StatusBarModifier.swift # Status bar style control
 ```
 
 ## 🎨 Design System
@@ -84,14 +94,22 @@ struct AppColors {
 - **PlaceholderModifier**: Custom text field styling with white placeholder text
 - **SocialStatCard**: Reusable social statistics display component
 - **UserCard**: Consistent user profile card design across social views
+- **ProfileAvatarView**: Reusable avatar component supporting social images and gradient avatars
+- **DefaultAvatarView**: Gradient avatar with silhouette overlay
+- **ToastView**: Toast notification system for user feedback
+- **PasswordStrengthIndicator**: Real-time password complexity feedback
 
 ## 🔐 Authentication & User Management
 
 ### **Firebase Authentication**
-- Email/password authentication
+- Email/password authentication with password strength validation
 - Email verification flow
+- Google Sign-In integration
+- Apple Sign-In integration
+- Password reset via email
+- Account deletion (per Apple guidelines)
 - User profile creation on first sign-up
-- Global authentication state management via `AuthService`
+- Global authentication state management via `AuthViewModel`
 
 ### **User Profile Model**
 ```swift
@@ -101,8 +119,11 @@ struct UserProfile: Codable, Identifiable {
     var displayName: String
     var email: String
     var profilePic: String?
+    var selectedAvatar: String?        // Default gradient avatar selection
+    var useGradientAvatar: Bool?      // Preference for gradient vs social image
     var createdAt: Date
-    var preferredWeightUnit: String
+    var preferredWeightUnit: String   // "kg" or "lbs"
+    var tagline: String?              // User-selected profile tagline
     var trackedExercise: String?       // Currently tracked exercise
     var followers: [String]           // Array of follower UIDs
     var following: [String]           // Array of following UIDs
@@ -124,10 +145,13 @@ struct UserProfile: Codable, Identifiable {
 - **Template**: Reusable workout templates
 
 ### **Key Features**
-- Workout logging with exercises and sets
+- Workout logging with exercises, sets, reps, and weights
 - Template creation and management
 - Workout history and tracking
 - Exercise database with common exercises
+- Weight unit conversion (kg ↔ lbs) with user preference
+- View workout details from social feeds
+- Save workouts as templates
 
 ## 👥 Social Features
 
@@ -195,18 +219,40 @@ struct UserProfile: Codable, Identifiable {
 ## 🚀 Current Status
 
 ### **Completed Features**
-✅ User authentication and profiles  
+✅ User authentication (Email/Password, Google, Apple Sign-In)  
+✅ Password strength validation and reset  
+✅ Account deletion (per Apple guidelines)  
 ✅ Workout tracking and templates  
-✅ Complete social system (follow, search, profiles)  
+✅ Weight unit conversion (kg ↔ lbs)  
+✅ Complete social system (follow, search, profiles, recent activity)  
+✅ Profile customization (avatars, taglines, display names)  
 ✅ Navigation and state management  
+✅ Toast notification system  
+✅ Settings view with preferences  
+✅ View workout details from social feeds  
 ✅ Mock user support for testing  
 ✅ UI/UX with consistent design system  
+✅ Production Firebase setup  
+✅ Firestore security rules deployed  
+✅ Privacy Policy and Terms of Service hosted  
+✅ App Store submission ready  
+
+### **Recent Updates (2025)**
+- Default gradient avatars with silhouette
+- Profile taglines (5 preset options)
+- Weight unit preference (kg/lbs)
+- Toast notifications for user feedback
+- Improved navigation for viewing workouts
+- Firestore query batching for large follower lists
+- Account deletion with comprehensive data cleanup
+- Apple Sign-In integration
+- App Store submission documentation
 
 ### **Pending Enhancements**
-- Social stats visual improvements
-- Additional action buttons on user cards
-- Performance optimizations
+- Push notifications (coming soon)
+- Email updates (coming soon)
 - Additional social features (messaging, etc.)
+- Performance optimizations
 
 ## 🔄 Getting Back Up to Speed
 
@@ -244,7 +290,28 @@ node uploadUsers.js
 node uploadAll.js
 ```
 
+## 📦 App Store Submission
+
+The app is ready for App Store submission with:
+- ✅ Production Firebase configuration
+- ✅ Firestore security rules deployed
+- ✅ Privacy Policy and Terms of Service hosted
+- ✅ Account deletion implemented (Apple requirement)
+- ✅ App icon and screenshots prepared
+- ✅ App Store Connect setup documentation
+
+See `APP_STORE_CONNECT_SETUP_GUIDE.md` for submission instructions.
+
+## 📄 Documentation
+
+- **APP_STORE_CONNECT_SETUP_GUIDE.md** - Step-by-step App Store submission guide
+- **APP_STORE_FORM_VALUES.md** - Pre-filled form values for App Store Connect
+- **APP_PRIVACY_DETAILS.md** - Privacy questionnaire answers
+- **APP_STORE_ASSETS.md** - Screenshot requirements
+- **PRODUCTION_CHECKLIST.md** - Firebase production setup checklist
+
 ---
 
-**Last Updated**: December 2024  
-**Status**: Core features complete, social system fully functional
+**Last Updated**: February 2025  
+**Status**: Production ready, App Store submission in progress  
+**Version**: 1.0.0

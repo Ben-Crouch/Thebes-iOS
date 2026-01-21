@@ -80,9 +80,13 @@ struct TemplatesListView: View {
                     .padding(.bottom, 20)
                 }
             }
-            .navigationTitle("Templates")
-            .navigationBarTitleDisplayMode(.large)
             .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Text("Templates")
+                        .font(.title2)
+                        .fontWeight(.bold)
+                        .foregroundColor(.white)
+                }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: {
                         withAnimation { showSideMenu.toggle() }
@@ -203,7 +207,7 @@ struct TemplatesListHeaderView: View {
                 )
         )
         .padding(.horizontal, 20)
-        .padding(.top, 8)
+        .padding(.top, 16)
     }
 }
 

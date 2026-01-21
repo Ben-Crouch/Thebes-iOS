@@ -12,6 +12,24 @@ struct ExerciseInputView<T: ExerciseHandlingProtocol>: View {
     var exerciseIndex: Int
     var addSet: () -> Void
     @ObservedObject private var appSettings = AppSettings.shared
+    @FocusState private var focusedField: FieldKey?
+    @State private var fieldTexts: [FieldKey: String] = [:]
+    @State private var previousReps: [FieldKey: Int] = [:]
+    @State private var previousWeights: [FieldKey: Double] = [:]
+    @State private var previousRests: [FieldKey: Int] = [:]
+    @State private var lastFocusedField: FieldKey?
+
+    private enum FieldKind {
+        case reps
+        case weight
+        case rest
+    }
+
+    private struct FieldKey: Hashable {
+        let exerciseIndex: Int
+        let setIndex: Int
+        let kind: FieldKind
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -23,6 +41,9 @@ struct ExerciseInputView<T: ExerciseHandlingProtocol>: View {
         .padding()
         .background(AppColors.primary.opacity(0.6))
         .cornerRadius(10)
+        .onChange(of: focusedField) { newValue in
+            handleFocusChange(to: newValue)
+        }
     }
 
     private var headerRow: some View {
@@ -90,52 +111,57 @@ struct ExerciseInputView<T: ExerciseHandlingProtocol>: View {
     private var setsList: some View {
         VStack(spacing: 6) {
             ForEach(exercise.sets.indices, id: \.self) { index in
+                let repsKey = fieldKey(kind: .reps, setIndex: index)
+                let weightKey = fieldKey(kind: .weight, setIndex: index)
+                let restKey = fieldKey(kind: .rest, setIndex: index)
                 HStack {
-                    TextField("", text: Binding(
-                        get: { String(exercise.sets[index].reps) },
-                        set: { exercise.sets[index].reps = Int($0) ?? 0 }
-                    ))
+                    TextField("", text: repsBinding(for: index))
                     .keyboardType(.numberPad)
                     .padding(6)
                     .background(AppColors.complementary.opacity(0.2))
                     .cornerRadius(6)
                     .frame(width: 60)
                     .foregroundColor(.white)
+                    .focused($focusedField, equals: repsKey)
+                    .overlay(alignment: .leading) {
+                        placeholderView(for: repsKey)
+                    }
+                    .onChange(of: exercise.sets[index].reps) { _ in
+                        syncFieldText(for: repsKey)
+                    }
 
                     if exercise.sets[index].weight != nil {
-                        TextField("", text: Binding(
-                            get: {
-                                let weightKG = exercise.sets[index].weight ?? 0.0
-                                let displayValue = appSettings.preferredWeightUnit.convertFromKilograms(weightKG)
-                                return String(format: "%.1f", displayValue)
-                            },
-                            set: { newValue in
-                                if let val = Double(newValue) {
-                                    exercise.sets[index].weight = appSettings.preferredWeightUnit.convertToKilograms(val)
-                                } else {
-                                    exercise.sets[index].weight = nil
-                                }
-                            }
-                        ))
+                        TextField("", text: weightBinding(for: index))
                         .keyboardType(.decimalPad)
                         .padding(6)
                         .background(AppColors.complementary.opacity(0.2))
                         .cornerRadius(6)
                         .frame(width: 80)
                         .foregroundColor(.white)
+                        .focused($focusedField, equals: weightKey)
+                        .overlay(alignment: .leading) {
+                            placeholderView(for: weightKey)
+                        }
+                        .onChange(of: exercise.sets[index].weight) { _ in
+                            syncFieldText(for: weightKey)
+                        }
                     }
 
                     if let _ = exercise.sets[index].restTime {
-                        TextField("", text: Binding(
-                            get: { exercise.sets[index].restTime.map(String.init) ?? "" },
-                            set: { exercise.sets[index].restTime = Int($0) }
-                        ))
+                        TextField("", text: restBinding(for: index))
                         .keyboardType(.numberPad)
                         .padding(6)
                         .background(AppColors.complementary.opacity(0.2))
                         .cornerRadius(6)
                         .frame(width: 60)
                         .foregroundColor(.white)
+                        .focused($focusedField, equals: restKey)
+                        .overlay(alignment: .leading) {
+                            placeholderView(for: restKey)
+                        }
+                        .onChange(of: exercise.sets[index].restTime) { _ in
+                            syncFieldText(for: restKey)
+                        }
                     }
 
                     Button(action: { viewModel.removeSet(from: exerciseIndex, at: index) }) {
@@ -170,5 +196,167 @@ struct ExerciseInputView<T: ExerciseHandlingProtocol>: View {
             )
         }
         .padding(.top, 8)
+    }
+
+    private func fieldKey(kind: FieldKind, setIndex: Int) -> FieldKey {
+        FieldKey(exerciseIndex: exerciseIndex, setIndex: setIndex, kind: kind)
+    }
+
+    private func handleFocusChange(to newField: FieldKey?) {
+        if lastFocusedField != newField {
+            if let lastField = lastFocusedField {
+                handleBlur(for: lastField)
+            }
+            if let newField {
+                handleFocus(for: newField)
+            }
+            lastFocusedField = newField
+        }
+    }
+
+    private func handleFocus(for key: FieldKey) {
+        switch key.kind {
+        case .reps:
+            previousReps[key] = exercise.sets[key.setIndex].reps
+        case .weight:
+            if let weight = exercise.sets[key.setIndex].weight {
+                previousWeights[key] = weight
+            }
+        case .rest:
+            if let restTime = exercise.sets[key.setIndex].restTime {
+                previousRests[key] = restTime
+            }
+        }
+        fieldTexts[key] = ""
+    }
+
+    private func handleBlur(for key: FieldKey) {
+        let text = (fieldTexts[key] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        switch key.kind {
+        case .reps:
+            if text.isEmpty || Int(text) == nil {
+                restoreReps(for: key)
+            } else if let value = Int(text) {
+                exercise.sets[key.setIndex].reps = value
+            }
+            previousReps.removeValue(forKey: key)
+        case .weight:
+            if text.isEmpty || Double(text) == nil {
+                restoreWeight(for: key)
+            } else if let value = Double(text) {
+                exercise.sets[key.setIndex].weight = appSettings.preferredWeightUnit.convertToKilograms(value)
+            }
+            previousWeights.removeValue(forKey: key)
+        case .rest:
+            if text.isEmpty || Int(text) == nil {
+                restoreRest(for: key)
+            } else if let value = Int(text) {
+                exercise.sets[key.setIndex].restTime = value
+            }
+            previousRests.removeValue(forKey: key)
+        }
+        syncFieldText(for: key)
+    }
+
+    private func restoreReps(for key: FieldKey) {
+        if let previous = previousReps[key] {
+            exercise.sets[key.setIndex].reps = previous
+        }
+    }
+
+    private func restoreWeight(for key: FieldKey) {
+        if let previous = previousWeights[key] {
+            exercise.sets[key.setIndex].weight = previous
+        }
+    }
+
+    private func restoreRest(for key: FieldKey) {
+        if let previous = previousRests[key] {
+            exercise.sets[key.setIndex].restTime = previous
+        }
+    }
+
+    private func repsBinding(for setIndex: Int) -> Binding<String> {
+        let key = fieldKey(kind: .reps, setIndex: setIndex)
+        return Binding(
+            get: {
+                fieldTexts[key] ?? displayText(for: key)
+            },
+            set: { newValue in
+                fieldTexts[key] = newValue
+                if let value = Int(newValue) {
+                    exercise.sets[setIndex].reps = value
+                }
+            }
+        )
+    }
+
+    private func weightBinding(for setIndex: Int) -> Binding<String> {
+        let key = fieldKey(kind: .weight, setIndex: setIndex)
+        return Binding(
+            get: {
+                fieldTexts[key] ?? displayText(for: key)
+            },
+            set: { newValue in
+                fieldTexts[key] = newValue
+                if let value = Double(newValue) {
+                    exercise.sets[setIndex].weight = appSettings.preferredWeightUnit.convertToKilograms(value)
+                }
+            }
+        )
+    }
+
+    private func restBinding(for setIndex: Int) -> Binding<String> {
+        let key = fieldKey(kind: .rest, setIndex: setIndex)
+        return Binding(
+            get: {
+                fieldTexts[key] ?? displayText(for: key)
+            },
+            set: { newValue in
+                fieldTexts[key] = newValue
+                if let value = Int(newValue) {
+                    exercise.sets[setIndex].restTime = value
+                }
+            }
+        )
+    }
+
+    private func displayText(for key: FieldKey) -> String {
+        switch key.kind {
+        case .reps:
+            return String(exercise.sets[key.setIndex].reps)
+        case .weight:
+            guard let weightKG = exercise.sets[key.setIndex].weight else { return "" }
+            let displayValue = appSettings.preferredWeightUnit.convertFromKilograms(weightKG)
+            return String(format: "%.1f", displayValue)
+        case .rest:
+            return exercise.sets[key.setIndex].restTime.map(String.init) ?? ""
+        }
+    }
+
+    private func syncFieldText(for key: FieldKey) {
+        if focusedField != key {
+            fieldTexts[key] = displayText(for: key)
+        }
+    }
+
+    private func placeholderView(for key: FieldKey) -> some View {
+        let text = fieldTexts[key] ?? displayText(for: key)
+        return Group {
+            if text.isEmpty {
+                Text(placeholderText(for: key))
+                    .foregroundColor(.white.opacity(0.4))
+                    .padding(.leading, 6)
+            }
+        }
+    }
+
+    private func placeholderText(for key: FieldKey) -> String {
+        switch key.kind {
+        case .weight:
+            return appSettings.preferredWeightUnit.symbol
+        case .reps, .rest:
+            return "-"
+        }
     }
 }

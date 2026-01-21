@@ -141,7 +141,7 @@ class WorkoutLogViewModel: ObservableObject, ExerciseHandlingProtocol {
     private func saveExercises(for workoutId: String, date: Date, completion: @escaping () -> Void) {
         let dispatchGroup = DispatchGroup()
 
-        for exercise in exercises {
+        for (index, exercise) in exercises.enumerated() {
             dispatchGroup.enter()
             let exerciseToSave = Exercise(
                 workoutId: workoutId,
@@ -149,7 +149,8 @@ class WorkoutLogViewModel: ObservableObject, ExerciseHandlingProtocol {
                 userId: self.userId,
                 name: exercise.name,
                 sets: exercise.sets,
-                date: date
+                date: date,
+                order: index
             )
 
             ExerciseService.shared.saveExercise(exercise: exerciseToSave) { result in
