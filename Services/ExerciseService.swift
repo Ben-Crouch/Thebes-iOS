@@ -101,7 +101,6 @@ class ExerciseService {
         db.collection("exercises")
             .whereField("userId", isEqualTo: userId)
             .whereField("workoutId", isEqualTo: workoutId)
-            .order(by: "order")
             .getDocuments { snapshot, error in
                 if let error = error {
                     completion(.failure(error))
@@ -122,7 +121,6 @@ class ExerciseService {
         db.collection("exercises")
             .whereField("userId", isEqualTo: userId)
             .whereField("templateId", isEqualTo: templateId)
-            .order(by: "order")
             .getDocuments { snapshot, error in
                 if let error = error {
                     completion(.failure(error))
